@@ -324,8 +324,8 @@ class ActionExecutionClient(Runtime):
                     'POST',
                     f'{self.action_execution_server_url}/execute_action',
                     json=execution_action_body,
-                    # wait a few more seconds to get the timeout error from client side
-                    timeout=action.timeout + 5,
+                    # wait additional seconds to get the timeout error from server side
+                    timeout=action.timeout + 100,
                 )
                 assert response.is_closed
                 output = response.json()

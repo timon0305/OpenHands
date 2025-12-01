@@ -97,10 +97,10 @@ def is_local_env(web_url: str | None) -> bool:
         web_url: The web URL to check
 
     Returns:
-        True if the environment is local (localhost:3030), False otherwise
+        True if the environment is local (localhost), False otherwise
     """
     hostname = _extract_hostname_from_web_url(web_url)
-    return hostname == 'host.docker.internal:3030'
+    return hostname == 'localhost'
 
 
 def is_staging_env(web_url: str | None) -> bool:

@@ -40,7 +40,7 @@ export const ORGS_AND_MEMBERS: Record<string, OrganizationMember[]> = {
     {
       id: "99",
       email: "me@acme.org",
-      role: "superadmin",
+      role: "owner",
       status: "active",
     },
   ],

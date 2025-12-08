@@ -24,19 +24,16 @@ describe("useWebSocket", () => {
     server.use(wsHandler);
   });
 
-  // Clean up all WebSocket clients after each test to prevent cross-test contamination
-  // This is critical because wsLink.broadcast() sends to ALL clients in wsLink.clients,
-  // which can include stale connections from previous tests if not properly cleaned up
+  // Clean up after each test to prevent cross-test contamination
+  // The cleanup() call unmounts the hook, triggering its useEffect cleanup which closes the WebSocket
+  // We then clear the wsLink.clients set to ensure broadcast() won't reach stale connections
   afterEach(() => {
-    // First, unmount any rendered hooks to trigger their cleanup effects
-    // This ensures the hook's internal WebSocket close happens before we clean up MSW clients
+    // Unmount any rendered hooks to trigger their cleanup effects (closes WebSocket connections)
     cleanup();
 
-    // Then close any remaining MSW WebSocket clients
-    // This handles edge cases where connections weren't properly closed by the hook
-    wsLink.clients.forEach((client) => {
-      client.close();
-    });
+    // Clear the clients set to prevent broadcast() from reaching connections from previous tests
+    // Note: We don't call client.close() as that sends a CloseEvent which can cause race conditions
+    wsLink.clients.clear();
   });
 
   it("should establish a WebSocket connection", async () => {

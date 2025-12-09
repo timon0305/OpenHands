@@ -23,8 +23,11 @@ test("org selector should show all options when cleared", async ({ page }) => {
   await expect(listbox).not.toBeVisible();
 
   // Hover to reveal clear button and click it
+  // The clear button is within the org-selector's parent wrapper
   await orgSelector.hover();
-  const clearButton = page.locator('button[data-visible="true"]');
+  const clearButton = orgSelector
+    .locator("..")
+    .locator('button[data-visible="true"]');
   await clearButton.click();
 
   // Click on the input to open the dropdown

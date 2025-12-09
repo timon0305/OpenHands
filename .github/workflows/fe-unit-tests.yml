@@ -43,4 +43,4 @@ jobs:
         working-directory: ./frontend
         # Use --no-file-parallelism to prevent race conditions in WebSocket tests
         # See: https://github.com/All-Hands-AI/OpenHands/issues/11944
-        run: npm run test -- --no-file-parallelism
+        run: npm run test

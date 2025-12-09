@@ -1,5 +1,10 @@
 import { ObservationBase } from "./base";
-import { CmdOutputMetadata, TaskItem, TextContent, ImageContent } from "./common";
+import {
+  CmdOutputMetadata,
+  TaskItem,
+  TextContent,
+  ImageContent
+} from "./common";
 
 export interface MCPToolObservation extends ObservationBase<"MCPToolObservation"> {
   /**

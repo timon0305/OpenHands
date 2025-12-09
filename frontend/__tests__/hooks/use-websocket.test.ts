@@ -78,6 +78,11 @@ describe.sequential("useWebSocket", () => {
       expect(result.current.lastMessage).toBe("Welcome to the WebSocket!");
     });
 
+    // Ensure currentClient is set before sending (race condition guard)
+    await waitFor(() => {
+      expect(currentClient).not.toBe(null);
+    });
+
     // Send another message from the mock server using direct client reference
     // (avoids broadcast which sends to ALL clients causing cross-test contamination)
     currentClient.send("Hello from server!");
@@ -242,6 +247,11 @@ describe.sequential("useWebSocket", () => {
 
     // onMessage handler should have been called for the welcome message
     expect(onMessageSpy).toHaveBeenCalledOnce();
+
+    // Ensure currentClient is set before sending (race condition guard)
+    await waitFor(() => {
+      expect(currentClient).not.toBe(null);
+    });
 
     // Send another message from the mock server using direct client reference
     // (avoids broadcast which sends to ALL clients causing cross-test contamination)

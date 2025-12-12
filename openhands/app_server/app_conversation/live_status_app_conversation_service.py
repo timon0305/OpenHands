@@ -232,7 +232,7 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
             # Setup working dir based on grouping
             working_dir = sandbox_spec.working_dir
             if self.sandbox_grouping_strategy != SandboxGroupingStrategy.NO_GROUPING:
-                working_dir = f"{working_dir}/{conversation_id}"
+                working_dir = f"{working_dir}/{conversation_id.hex}"
 
             # Run setup scripts
             remote_workspace = AsyncRemoteWorkspace(

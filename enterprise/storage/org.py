@@ -47,6 +47,7 @@ class Org(Base):  # type: ignore
     enable_solvability_analysis = Column(Boolean, nullable=True, default=False)
     v1_enabled = Column(Boolean, nullable=True)
     conversation_expiration = Column(Integer, nullable=True)
+    condenser_max_size = Column(Integer, nullable=True)
 
     # Relationships
     org_members = relationship('OrgMember', back_populates='org')

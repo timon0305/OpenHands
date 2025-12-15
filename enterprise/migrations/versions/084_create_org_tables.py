@@ -106,6 +106,7 @@ def upgrade() -> None:
             server_default=sa.text('false'),
         ),
         sa.Column('v1_enabled', sa.Boolean, nullable=True),
+        sa.Column('condenser_max_size', sa.Integer, nullable=True),
         sa.UniqueConstraint('name', name='org_name_unique'),
     )
 

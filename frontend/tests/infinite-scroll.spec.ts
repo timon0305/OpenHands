@@ -50,7 +50,7 @@ test.describe("Infinite scroll for conversations", () => {
     }
   });
 
-  test("loads more conversations when scrolling in recent conversations on home page", async ({
+  test("shows more conversations when clicking View More on home page", async ({
     page,
   }) => {
     await page.goto("/");
@@ -65,24 +65,32 @@ test.describe("Infinite scroll for conversations", () => {
     // Wait for initial conversations to load
     await expect(conversationCards.first()).toBeVisible();
 
-    // Count initial conversations
+    // Count initial conversations (should be 3 by default)
     const initialCount = await conversationCards.count();
-    expect(initialCount).toBeGreaterThan(0);
+    expect(initialCount).toBe(3);
 
-    // Scroll the recent conversations container to the bottom
-    await recentConversations.evaluate((el) => {
-      el.scrollTop = el.scrollHeight;
-    });
+    // Click "View More" to expand the list
+    const viewMoreButton = recentConversations.getByText("View More");
+    await expect(viewMoreButton).toBeVisible();
+    await viewMoreButton.click();
 
-    // Wait for infinite scroll to trigger
-    await page.waitForTimeout(1000);
+    // Wait for the expansion animation
+    await page.waitForTimeout(500);
 
-    // Count conversations after scrolling
-    const afterScrollCount = await conversationCards.count();
+    // Count conversations after expanding (should be 10)
+    const afterExpandCount = await conversationCards.count();
+    expect(afterExpandCount).toBe(10);
 
-    // If there are more conversations available, the count should increase
-    if (initialCount < 50) {
-      expect(afterScrollCount).toBeGreaterThan(initialCount);
-    }
+    // Click "View Less" to collapse the list
+    const viewLessButton = recentConversations.getByText("View Less");
+    await expect(viewLessButton).toBeVisible();
+    await viewLessButton.click();
+
+    // Wait for the collapse animation
+    await page.waitForTimeout(500);
+
+    // Count conversations after collapsing (should be back to 3)
+    const afterCollapseCount = await conversationCards.count();
+    expect(afterCollapseCount).toBe(3);
   });
 });

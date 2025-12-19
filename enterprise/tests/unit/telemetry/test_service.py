@@ -745,9 +745,7 @@ class TestUploadPendingMetrics:
         mock_session.__exit__ = MagicMock(return_value=None)
         mock_session_maker.return_value = mock_session
 
-        mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = (
-            []
-        )
+        mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
 
         await telemetry_service._upload_pending_metrics()
 
@@ -904,7 +902,7 @@ class TestUploadPendingMetrics:
         # First metric should be marked as uploaded
         assert mock_metric1.uploaded_at is not None
         # Second metric should have error recorded
-        assert mock_metric2.last_upload_error is not None
+        assert mock_metric2.last_upload_error is not None  # type: ignore[unreachable]
         assert mock_metric2.uploaded_at is None
 
 
@@ -961,9 +959,7 @@ class TestErrorHandling:
     """Test error handling in various scenarios."""
 
     @patch('server.telemetry.service.session_maker')
-    def test_should_collect_error_handling(
-        self, mock_session_maker, telemetry_service
-    ):
+    def test_should_collect_error_handling(self, mock_session_maker, telemetry_service):
         """Test error handling in _should_collect."""
         mock_session_maker.side_effect = Exception('Database error')
 
@@ -972,9 +968,7 @@ class TestErrorHandling:
         assert result is False
 
     @patch('server.telemetry.service.session_maker')
-    def test_should_upload_error_handling(
-        self, mock_session_maker, telemetry_service
-    ):
+    def test_should_upload_error_handling(self, mock_session_maker, telemetry_service):
         """Test error handling in _should_upload."""
         mock_session_maker.side_effect = Exception('Database error')
 
@@ -983,9 +977,7 @@ class TestErrorHandling:
         assert result is False
 
     @patch('server.telemetry.service.session_maker')
-    def test_license_warning_status_error(
-        self, mock_session_maker, telemetry_service
-    ):
+    def test_license_warning_status_error(self, mock_session_maker, telemetry_service):
         """Test error handling in get_license_warning_status."""
         mock_session_maker.side_effect = Exception('Database error')
 

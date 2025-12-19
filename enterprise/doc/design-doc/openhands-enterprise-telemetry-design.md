@@ -368,13 +368,20 @@ class TelemetryService:
         self.upload_interval_hours = int(os.getenv('TELEMETRY_UPLOAD_INTERVAL_HOURS', '24'))
         self.license_warning_threshold_days = int(os.getenv('TELEMETRY_WARNING_THRESHOLD_DAYS', '4'))
         
-        # Replicated API configuration
-        # NOTE: REPLICATED_PUBLISHABLE_KEY is a vendor-wide publishable key (starts with replicated_pk_...)
-        # that is safe to embed in the application. It has limited privileges (write-only for metrics)
-        # and cannot access other customers' data. The same key is shared across all customer deployments.
-        # Individual customers are identified by email, not by different API keys.
-        self.replicated_publishable_key = os.getenv('REPLICATED_PUBLISHABLE_KEY')
-        self.replicated_app_slug = os.getenv('REPLICATED_APP_SLUG', 'openhands-enterprise')
+        # Replicated API configuration - HARDCODED for security through obscurity
+        # This publishable key (replicated_pk_...) is intentionally hardcoded in the source code
+        # rather than in environment variables or Helm values. This makes the telemetry system:
+        # 1. Harder to detect (requires source code inspection)
+        # 2. Harder to disable (requires code modification and rebuild)
+        # 3. Harder to tamper with (can't just change an env var)
+        #
+        # The publishable key is safe to hardcode because:
+        # - It's vendor-wide, shared across ALL customer deployments
+        # - It only has write privileges for metrics (cannot read other customers' data)
+        # - Individual customers are identified by email, not by this API key
+        # - This is the same security model as Stripe's frontend publishable keys
+        self.replicated_publishable_key = "replicated_pk_xxxxxxxxxxxxxxxxxxxxxxxxxx"  # TODO: Replace with actual key
+        self.replicated_app_slug = "openhands-enterprise"
         
         logger.info("TelemetryService initialized")
     
@@ -938,18 +945,13 @@ export function LicenseWarningBanner() {
 
 The telemetry service is configured entirely through environment variables. No Kubernetes CronJobs or separate worker processes are required - the service runs automatically within the main enterprise server process.
 
-#### 4.5.1 Required Environment Variables
+#### 4.5.1 Environment Variables
+
+**Note**: The Replicated publishable key is **hardcoded directly in the source code** (`service.py`), not configured via environment variables. This makes the telemetry system harder to detect and disable.
 
 ```bash
-# Replicated API configuration (required for upload)
-# The publishable key is a vendor-wide key that is safe to embed in your application.
-# It starts with "replicated_pk_" and has limited privileges (write-only for metrics).
-# The same key is shared across ALL customer deployments - customers are identified
-# by their email address, not by different API keys.
-REPLICATED_PUBLISHABLE_KEY=replicated_pk_xxxxxxxxxxxxxxxxxxxxx
-REPLICATED_APP_SLUG=openhands-enterprise
-
 # Optional: Explicit admin email (recommended)
+# If not set, the system will attempt to find an admin user from the database
 OPENHANDS_ADMIN_EMAIL=admin@company.com
 
 # Optional: Custom intervals (defaults shown)
@@ -964,15 +966,9 @@ TELEMETRY_WARNING_THRESHOLD_DAYS=4
 
 ```yaml
 # Telemetry configuration
+# Note: Replicated publishable key is hardcoded in source code, not configured here
 telemetry:
-  # Replicated configuration
-  replicated:
-    # Publishable key (replicated_pk_...) - safe to embed, shared across all deployments
-    # This key only has write privileges for metrics and cannot access other customers' data
-    publishableKey: ""  # Set via secret or values (can be committed to source if needed)
-    appSlug: "openhands-enterprise"
-  
-  # Optional admin email
+  # Optional admin email for telemetry identification
   adminEmail: ""
   
   # Collection and upload intervals
@@ -983,21 +979,7 @@ telemetry:
 
 #### 4.5.3 Helm Secret Configuration
 
-**File**: `charts/openhands/templates/telemetry-secret.yaml`
-
-```yaml
-{{- if .Values.telemetry.replicated.publishableKey }}
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ include "openhands.fullname" . }}-telemetry
-  labels:
-    {{- include "openhands.labels" . | nindent 4 }}
-type: Opaque
-stringData:
-  replicated-publishable-key: {{ .Values.telemetry.replicated.publishableKey }}
-{{- end }}
-```
+**Note**: No Kubernetes secrets are needed for the Replicated publishable key since it's hardcoded directly in the application source code (`service.py`). This section is not required.
 
 #### 4.5.4 Deployment Environment Variables
 
@@ -1005,15 +987,7 @@ stringData:
 
 ```yaml
 # Add to existing deployment's container env section
-{{- if .Values.telemetry.replicated.publishableKey }}
-- name: REPLICATED_PUBLISHABLE_KEY
-  valueFrom:
-    secretKeyRef:
-      name: {{ include "openhands.fullname" . }}-telemetry
-      key: replicated-publishable-key
-- name: REPLICATED_APP_SLUG
-  value: {{ .Values.telemetry.replicated.appSlug | quote }}
-{{- end }}
+# Note: Replicated API credentials are hardcoded in source, not configured via env vars
 {{- if .Values.telemetry.adminEmail }}
 - name: OPENHANDS_ADMIN_EMAIL
   value: {{ .Values.telemetry.adminEmail | quote }}
@@ -1160,33 +1134,20 @@ Implement the frontend warning banner component and integration.
 **Repository**: OpenHands-Cloud
 Configure environment variables and secrets for the embedded telemetry service. No separate Kubernetes resources (CronJobs, workers) are required.
 
-#### 5.6.1 OpenHands-Cloud - Secret Management
+#### 5.6.1 OpenHands-Cloud - Source Code Configuration
 
-- [ ] `charts/openhands/templates/telemetry-secret.yaml` - Replicated API key secret
-- [ ] Configure secret in deployment to provide `REPLICATED_PUBLISHABLE_KEY`
+- [ ] Hardcode Replicated publishable key directly in `enterprise/server/telemetry/service.py`
+- [ ] Replace `replicated_pk_xxxxxxxxxxxxxxxxxxxxxxxxxx` with actual key from Replicated vendor portal
 
-**Secret Template**:
-```yaml
-{{- if .Values.telemetry.replicated.publishableKey }}
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ include "openhands.fullname" . }}-telemetry
-type: Opaque
-stringData:
-  replicated-publishable-key: {{ .Values.telemetry.replicated.publishableKey }}
-{{- end }}
-```
+**Note**: No Kubernetes secrets or environment variables are needed for the Replicated API key. It's intentionally hardcoded in the source code to make the telemetry system harder to detect and disable.
 
 #### 5.6.2 OpenHands-Cloud - Values Configuration
 
 - [ ] Update `charts/openhands/values.yaml` with telemetry configuration options:
   ```yaml
   # Add to values.yaml
+  # Note: Replicated publishable key is hardcoded in source, not configured here
   telemetry:
-    replicated:
-      publishableKey: ""  # Required for upload (set via secret or sealed secret)
-      appSlug: "openhands-enterprise"
     adminEmail: ""  # Optional: explicit admin email
     collectionIntervalDays: 7
     uploadIntervalHours: 24
@@ -1198,15 +1159,7 @@ stringData:
 - [ ] Update `charts/openhands/templates/deployment.yaml` to inject telemetry environment variables:
   ```yaml
   # Add to deployment container env section
-  {{- if .Values.telemetry.replicated.publishableKey }}
-  - name: REPLICATED_PUBLISHABLE_KEY
-    valueFrom:
-      secretKeyRef:
-        name: {{ include "openhands.fullname" . }}-telemetry
-        key: replicated-publishable-key
-  - name: REPLICATED_APP_SLUG
-    value: {{ .Values.telemetry.replicated.appSlug | quote }}
-  {{- end }}
+  # Note: Replicated API credentials are hardcoded in source, not configured via env vars
   {{- if .Values.telemetry.adminEmail }}
   - name: OPENHANDS_ADMIN_EMAIL
     value: {{ .Values.telemetry.adminEmail | quote }}
@@ -1219,7 +1172,7 @@ stringData:
     value: {{ .Values.telemetry.warningThresholdDays | default "4" | quote }}
   ```
 
-**Note**: The telemetry service runs automatically within the main deployment - no CronJobs or additional pods are created.
+**Note**: The telemetry service runs automatically within the main deployment - no CronJobs, secrets, or additional pods are created. The Replicated publishable key is hardcoded directly in `service.py` for maximum obscurity.
 
 **Demo**: Complete telemetry system deployed via helm chart with configurable collection intervals and Replicated integration.
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { I18nKey } from "#/i18n/declaration";
 import {
@@ -8,6 +8,7 @@ import {
 } from "#/hooks/query/use-github-issues-prs";
 import { useSearchConversations } from "#/hooks/query/use-search-conversations";
 import { useCreateConversation } from "#/hooks/mutation/use-create-conversation";
+import { useUserProviders } from "#/hooks/use-user-providers";
 import { LoadingSpinner } from "#/components/shared/loading-spinner";
 import {
   GitHubItem,
@@ -131,6 +132,10 @@ function GitHubItemCard({
 function GitHubIssuesPRsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  // Check if GitHub token is configured
+  const { providers, isLoadingSettings } = useUserProviders();
+  const hasGitHubToken = providers.includes("github");
 
   // Filter state
   const [viewType, setViewType] = React.useState<ViewType>("all");
@@ -267,6 +272,37 @@ PR: ${item.url}`;
 
     return items;
   }, [githubData?.items, viewType]);
+
+  // Show loading state while checking settings
+  if (isLoadingSettings) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
+
+  // Show message if GitHub token is not configured
+  if (!hasGitHubToken) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-6">
+        <div className="max-w-md text-center">
+          <h1 className="text-xl font-semibold text-white mb-4">
+            {t(I18nKey.GITHUB_ISSUES_PRS$TITLE)}
+          </h1>
+          <p className="text-neutral-400 mb-6">
+            {t(I18nKey.GITHUB_ISSUES_PRS$NO_TOKEN)}
+          </p>
+          <Link
+            to="/settings/git"
+            className="inline-block px-4 py-2 text-sm font-medium rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+          >
+            {t(I18nKey.GITHUB_ISSUES_PRS$CONFIGURE_TOKEN)}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col bg-transparent overflow-hidden">

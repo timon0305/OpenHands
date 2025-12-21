@@ -7,6 +7,7 @@ import GitHubIssuesPRsPage from "#/routes/github-issues-prs";
 import GitHubIssuesPRsService from "#/api/github-service/github-issues-prs.api";
 import ConversationService from "#/api/conversation-service/conversation-service.api";
 import { useShouldShowUserFeatures } from "#/hooks/use-should-show-user-features";
+import { useUserProviders } from "#/hooks/use-user-providers";
 
 // Mock the services
 vi.mock("#/api/github-service/github-issues-prs.api", () => ({
@@ -32,6 +33,10 @@ vi.mock("#/hooks/use-should-show-user-features", () => ({
   useShouldShowUserFeatures: vi.fn(),
 }));
 
+vi.mock("#/hooks/use-user-providers", () => ({
+  useUserProviders: vi.fn(),
+}));
+
 // Mock react-i18next to return the key as the translation
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -45,6 +50,7 @@ const mockSearchConversations = vi.mocked(
   ConversationService.searchConversations,
 );
 const mockUseShouldShowUserFeatures = vi.mocked(useShouldShowUserFeatures);
+const mockUseUserProviders = vi.mocked(useUserProviders);
 
 const renderGitHubIssuesPRsPage = () =>
   render(
@@ -96,6 +102,10 @@ describe("GitHubIssuesPRsPage", () => {
     localStorage.clear();
 
     mockUseShouldShowUserFeatures.mockReturnValue(true);
+    mockUseUserProviders.mockReturnValue({
+      providers: ["github"],
+      isLoadingSettings: false,
+    });
 
     mockGetGitHubItems.mockResolvedValue({
       items: MOCK_GITHUB_ITEMS,
@@ -259,6 +269,48 @@ describe("GitHubIssuesPRsPage", () => {
     await waitFor(() => {
       const viewLinks = screen.getAllByText("GITHUB_ISSUES_PRS$VIEW_ON_GITHUB");
       expect(viewLinks.length).toBe(2);
+    });
+  });
+
+  it("should show loading state while checking settings", async () => {
+    mockUseUserProviders.mockReturnValue({
+      providers: [],
+      isLoadingSettings: true,
+    });
+
+    renderGitHubIssuesPRsPage();
+
+    // Should show loading spinner
+    expect(screen.getByTestId("loading-spinner")).toBeInTheDocument();
+  });
+
+  it("should show no-token message when GitHub token is not configured", async () => {
+    mockUseUserProviders.mockReturnValue({
+      providers: [],
+      isLoadingSettings: false,
+    });
+
+    renderGitHubIssuesPRsPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("GITHUB_ISSUES_PRS$NO_TOKEN")).toBeInTheDocument();
+      expect(
+        screen.getByText("GITHUB_ISSUES_PRS$CONFIGURE_TOKEN"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("should have a link to git settings when no token is configured", async () => {
+    mockUseUserProviders.mockReturnValue({
+      providers: [],
+      isLoadingSettings: false,
+    });
+
+    renderGitHubIssuesPRsPage();
+
+    await waitFor(() => {
+      const configureLink = screen.getByText("GITHUB_ISSUES_PRS$CONFIGURE_TOKEN");
+      expect(configureLink).toHaveAttribute("href", "/settings/git");
     });
   });
 });

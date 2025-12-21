@@ -15679,6 +15679,38 @@
     "de": "Sitzung fortsetzen",
     "uk": "Відновити сеанс"
   },
+  "GITHUB_ISSUES_PRS$NO_TOKEN": {
+    "en": "To view your GitHub issues and pull requests, you need to configure a GitHub token.",
+    "ja": "GitHubのIssueとプルリクエストを表示するには、GitHubトークンを設定する必要があります。",
+    "zh-CN": "要查看您的GitHub问题和拉取请求，您需要配置GitHub令牌。",
+    "zh-TW": "要查看您的GitHub問題和拉取請求，您需要配置GitHub令牌。",
+    "ko-KR": "GitHub 이슈와 풀 리퀘스트를 보려면 GitHub 토큰을 구성해야 합니다.",
+    "no": "For å se dine GitHub-issues og pull requests, må du konfigurere et GitHub-token.",
+    "it": "Per visualizzare le tue issue e pull request di GitHub, devi configurare un token GitHub.",
+    "pt": "Para ver suas issues e pull requests do GitHub, você precisa configurar um token do GitHub.",
+    "es": "Para ver tus issues y pull requests de GitHub, necesitas configurar un token de GitHub.",
+    "ar": "لعرض مشكلات GitHub وطلبات السحب الخاصة بك، تحتاج إلى تكوين رمز GitHub.",
+    "fr": "Pour voir vos issues et pull requests GitHub, vous devez configurer un token GitHub.",
+    "tr": "GitHub sorunlarınızı ve çekme isteklerinizi görüntülemek için bir GitHub belirteci yapılandırmanız gerekir.",
+    "de": "Um Ihre GitHub-Issues und Pull Requests anzuzeigen, müssen Sie ein GitHub-Token konfigurieren.",
+    "uk": "Щоб переглянути ваші GitHub issues та pull requests, вам потрібно налаштувати токен GitHub."
+  },
+  "GITHUB_ISSUES_PRS$CONFIGURE_TOKEN": {
+    "en": "Configure GitHub Token",
+    "ja": "GitHubトークンを設定",
+    "zh-CN": "配置GitHub令牌",
+    "zh-TW": "配置GitHub令牌",
+    "ko-KR": "GitHub 토큰 구성",
+    "no": "Konfigurer GitHub-token",
+    "it": "Configura token GitHub",
+    "pt": "Configurar token do GitHub",
+    "es": "Configurar token de GitHub",
+    "ar": "تكوين رمز GitHub",
+    "fr": "Configurer le token GitHub",
+    "tr": "GitHub belirtecini yapılandır",
+    "de": "GitHub-Token konfigurieren",
+    "uk": "Налаштувати токен GitHub"
+  },
   "SIDEBAR$GITHUB_ISSUES_PRS": {
     "en": "Issues & PRs",
     "ja": "Issues & PRs",

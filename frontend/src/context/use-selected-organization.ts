@@ -1,12 +1,17 @@
-import { useSelectedOrgId } from "#/hooks/query/use-selected-organization-id";
-import { useUpdateSelectedOrganizationId } from "#/hooks/mutation/use-update-selected-organization-id";
+import { useRevalidator } from "react-router";
+import { useSelectedOrganizationStore } from "#/stores/selected-organization-store";
 
 export const useSelectedOrganizationId = () => {
-  const { data: orgId } = useSelectedOrgId();
-  const updateState = useUpdateSelectedOrganizationId();
+  const revalidator = useRevalidator();
+  const { organizationId: orgId, setOrganizationId: setOrganizationIdStore } =
+    useSelectedOrganizationStore();
 
-  return {
-    orgId,
-    setOrgId: (newValue: string | null) => updateState.mutate(newValue),
+  const setOrgId = (newOrganizationId: string | null) => {
+    setOrganizationIdStore(newOrganizationId);
+    // Revalidate route to ensure the latest orgId is used.
+    // This is useful for redirecting the user away from admin-only org pages.
+    revalidator.revalidate();
   };
+
+  return { orgId, setOrgId };
 };

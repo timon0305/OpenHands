@@ -39,6 +39,20 @@ LITE_LLM_API_URL = os.environ.get(
 )
 LITE_LLM_TEAM_ID = os.environ.get('LITE_LLM_TEAM_ID', None)
 LITE_LLM_API_KEY = os.environ.get('LITE_LLM_API_KEY', None)
+# Timeout in seconds for BYOR key verification requests to LiteLLM
+BYOR_KEY_VERIFICATION_TIMEOUT = 5.0
+SUBSCRIPTION_PRICE_DATA = {
+    'MONTHLY_SUBSCRIPTION': {
+        'unit_amount': 2000,
+        'currency': 'usd',
+        'product_data': {
+            'name': 'OpenHands Monthly',
+            'tax_code': 'txcd_10000000',
+        },
+        'tax_behavior': 'exclusive',
+        'recurring': {'interval': 'month', 'interval_count': 1},
+    },
+}
 
 DEFAULT_INITIAL_BUDGET = float(os.environ.get('DEFAULT_INITIAL_BUDGET', '10'))
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', None)

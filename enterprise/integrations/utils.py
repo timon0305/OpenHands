@@ -20,6 +20,7 @@ from openhands.events.action import (
     AgentFinishAction,
     MessageAction,
 )
+from openhands.events.event_filter import EventFilter
 from openhands.events.event_store_abc import EventStoreABC
 from openhands.events.observation.agent import AgentStateChangedObservation
 from openhands.integrations.service_types import Repository
@@ -203,18 +204,27 @@ def get_summary_for_agent_state(
 def get_final_agent_observation(
     event_store: EventStoreABC,
 ) -> list[AgentStateChangedObservation]:
-    return event_store.get_matching_events(
-        source=EventSource.ENVIRONMENT,
-        event_types=(AgentStateChangedObservation,),
-        limit=1,
+    events = event_store.search_events(
         reverse=True,
+        limit=1,
+        filter=EventFilter(
+            source=EventSource.ENVIRONMENT.value,
+            include_types=(AgentStateChangedObservation,),
+        ),
     )
+    return [e for e in events if isinstance(e, AgentStateChangedObservation)]
 
 
 def get_last_user_msg(event_store: EventStoreABC) -> list[MessageAction]:
-    return event_store.get_matching_events(
-        source=EventSource.USER, event_types=(MessageAction,), limit=1, reverse='true'
+    events = event_store.search_events(
+        reverse=True,
+        limit=1,
+        filter=EventFilter(
+            source=EventSource.USER.value,
+            include_types=(MessageAction,),
+        ),
     )
+    return [e for e in events if isinstance(e, MessageAction)]
 
 
 def extract_summary_from_event_store(
@@ -226,13 +236,18 @@ def extract_summary_from_event_store(
     conversation_link = CONVERSATION_URL.format(conversation_id)
     summary_instruction = get_summary_instruction()
 
-    instruction_event: list[MessageAction] = event_store.get_matching_events(
-        query=json.dumps(summary_instruction),
-        source=EventSource.USER,
-        event_types=(MessageAction,),
-        limit=1,
+    instruction_events = event_store.search_events(
         reverse=True,
+        limit=1,
+        filter=EventFilter(
+            query=json.dumps(summary_instruction),
+            source=EventSource.USER.value,
+            include_types=(MessageAction,),
+        ),
     )
+    instruction_event: list[MessageAction] = [
+        e for e in instruction_events if isinstance(e, MessageAction)
+    ]
 
     final_agent_observation = get_final_agent_observation(event_store)
 
@@ -247,15 +262,20 @@ def extract_summary_from_event_store(
 
     event_id: int = instruction_event[0].id
 
-    agent_messages: list[MessageAction | AgentFinishAction] = (
-        event_store.get_matching_events(
-            start_id=event_id,
-            source=EventSource.AGENT,
-            event_types=(MessageAction, AgentFinishAction),
-            reverse=True,
-            limit=1,
-        )
+    agent_messages_events = event_store.search_events(
+        start_id=event_id,
+        reverse=True,
+        limit=1,
+        filter=EventFilter(
+            source=EventSource.AGENT.value,
+            include_types=(MessageAction, AgentFinishAction),
+        ),
     )
+    agent_messages: list[MessageAction | AgentFinishAction] = [
+        e
+        for e in agent_messages_events
+        if isinstance(e, (MessageAction, AgentFinishAction))
+    ]
 
     if len(agent_messages) == 0:
         logger.warning(

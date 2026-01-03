@@ -96,12 +96,12 @@ export function LoginContent({
       </h1>
 
       {emailVerified && (
-        <p className="text-sm text-muted-foreground text-center">
+        <p className="text-sm text-muted-foreground text-center mb-6">
           {t(I18nKey.AUTH$EMAIL_VERIFIED_PLEASE_LOGIN)}
         </p>
       )}
       {hasDuplicatedEmail && (
-        <p className="text-sm text-danger text-center">
+        <p className="text-sm text-danger text-center mb-6">
           {t(I18nKey.AUTH$DUPLICATE_EMAIL_ERROR)}
         </p>
       )}

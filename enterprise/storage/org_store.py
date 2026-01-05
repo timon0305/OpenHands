@@ -158,4 +158,5 @@ class OrgStore:
 
             kwargs[key] = getattr(user_settings, normalized)
 
+        kwargs['org_version'] = user_settings.user_version
         return kwargs

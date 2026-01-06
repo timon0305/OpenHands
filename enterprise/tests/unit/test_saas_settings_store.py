@@ -176,4 +176,3 @@ async def test_encryption(settings_store):
         # But we should be able to decrypt it when loading
         loaded_settings = await settings_store.load()
         assert loaded_settings.llm_api_key.get_secret_value() == 'secret_key'
-

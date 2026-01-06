@@ -38,6 +38,7 @@ class TestLiteLlmManager:
         user_settings.llm_model = 'test-model'
         user_settings.llm_api_key = SecretStr('test-key')
         user_settings.llm_base_url = 'http://test.com'
+        user_settings.user_version = 4  # Set version to avoid None comparison
         return user_settings
 
     @pytest.fixture

@@ -205,7 +205,7 @@ class TestGetLlmApiKeyForByor:
         mock_store_key.assert_called_once_with(user_id, new_key)
 
     @pytest.mark.asyncio
-    @patch('server.routes.api_keys.verify_byor_key_in_litellm')
+    @patch('storage.lite_llm_manager.LiteLlmManager.verify_key')
     @patch('server.routes.api_keys.get_byor_key_from_db')
     async def test_valid_key_in_database_returns_key(
         self, mock_get_key, mock_verify_key
@@ -229,7 +229,7 @@ class TestGetLlmApiKeyForByor:
     @patch('server.routes.api_keys.store_byor_key_in_db')
     @patch('server.routes.api_keys.generate_byor_key')
     @patch('server.routes.api_keys.delete_byor_key_from_litellm')
-    @patch('server.routes.api_keys.verify_byor_key_in_litellm')
+    @patch('storage.lite_llm_manager.LiteLlmManager.verify_key')
     @patch('server.routes.api_keys.get_byor_key_from_db')
     async def test_invalid_key_in_database_regenerates(
         self,
@@ -265,7 +265,7 @@ class TestGetLlmApiKeyForByor:
     @patch('server.routes.api_keys.store_byor_key_in_db')
     @patch('server.routes.api_keys.generate_byor_key')
     @patch('server.routes.api_keys.delete_byor_key_from_litellm')
-    @patch('server.routes.api_keys.verify_byor_key_in_litellm')
+    @patch('storage.lite_llm_manager.LiteLlmManager.verify_key')
     @patch('server.routes.api_keys.get_byor_key_from_db')
     async def test_invalid_key_deletion_failure_still_regenerates(
         self,

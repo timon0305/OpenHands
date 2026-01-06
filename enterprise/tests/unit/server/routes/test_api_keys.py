@@ -15,8 +15,8 @@ class TestVerifyByorKeyInLitellm:
     """Test the verify_byor_key_in_litellm function."""
 
     @pytest.mark.asyncio
-    @patch('server.routes.api_keys.LITE_LLM_API_URL', 'https://litellm.example.com')
-    @patch('server.routes.api_keys.httpx.AsyncClient')
+    @patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'https://litellm.example.com')
+    @patch('storage.lite_llm_manager.httpx.AsyncClient')
     async def test_verify_valid_key_returns_true(self, mock_client_class):
         """Test that a valid key (200 response) returns True."""
         # Arrange
@@ -42,8 +42,8 @@ class TestVerifyByorKeyInLitellm:
         )
 
     @pytest.mark.asyncio
-    @patch('server.routes.api_keys.LITE_LLM_API_URL', 'https://litellm.example.com')
-    @patch('server.routes.api_keys.httpx.AsyncClient')
+    @patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'https://litellm.example.com')
+    @patch('storage.lite_llm_manager.httpx.AsyncClient')
     async def test_verify_invalid_key_401_returns_false(self, mock_client_class):
         """Test that an invalid key (401 response) returns False."""
         # Arrange
@@ -64,8 +64,8 @@ class TestVerifyByorKeyInLitellm:
         assert result is False
 
     @pytest.mark.asyncio
-    @patch('server.routes.api_keys.LITE_LLM_API_URL', 'https://litellm.example.com')
-    @patch('server.routes.api_keys.httpx.AsyncClient')
+    @patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'https://litellm.example.com')
+    @patch('storage.lite_llm_manager.httpx.AsyncClient')
     async def test_verify_invalid_key_403_returns_false(self, mock_client_class):
         """Test that an invalid key (403 response) returns False."""
         # Arrange
@@ -86,8 +86,8 @@ class TestVerifyByorKeyInLitellm:
         assert result is False
 
     @pytest.mark.asyncio
-    @patch('server.routes.api_keys.LITE_LLM_API_URL', 'https://litellm.example.com')
-    @patch('server.routes.api_keys.httpx.AsyncClient')
+    @patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'https://litellm.example.com')
+    @patch('storage.lite_llm_manager.httpx.AsyncClient')
     async def test_verify_server_error_returns_false(self, mock_client_class):
         """Test that a server error (500) returns False to ensure key validity."""
         # Arrange
@@ -109,8 +109,8 @@ class TestVerifyByorKeyInLitellm:
         assert result is False
 
     @pytest.mark.asyncio
-    @patch('server.routes.api_keys.LITE_LLM_API_URL', 'https://litellm.example.com')
-    @patch('server.routes.api_keys.httpx.AsyncClient')
+    @patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'https://litellm.example.com')
+    @patch('storage.lite_llm_manager.httpx.AsyncClient')
     async def test_verify_timeout_returns_false(self, mock_client_class):
         """Test that a timeout returns False to ensure key validity."""
         # Arrange
@@ -129,8 +129,8 @@ class TestVerifyByorKeyInLitellm:
         assert result is False
 
     @pytest.mark.asyncio
-    @patch('server.routes.api_keys.LITE_LLM_API_URL', 'https://litellm.example.com')
-    @patch('server.routes.api_keys.httpx.AsyncClient')
+    @patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'https://litellm.example.com')
+    @patch('storage.lite_llm_manager.httpx.AsyncClient')
     async def test_verify_network_error_returns_false(self, mock_client_class):
         """Test that a network error returns False to ensure key validity."""
         # Arrange
@@ -149,7 +149,7 @@ class TestVerifyByorKeyInLitellm:
         assert result is False
 
     @pytest.mark.asyncio
-    @patch('server.routes.api_keys.LITE_LLM_API_URL', None)
+    @patch('storage.lite_llm_manager.LITE_LLM_API_URL', None)
     async def test_verify_missing_api_url_returns_false(self):
         """Test that missing LITE_LLM_API_URL returns False."""
         # Arrange
@@ -163,7 +163,7 @@ class TestVerifyByorKeyInLitellm:
         assert result is False
 
     @pytest.mark.asyncio
-    @patch('server.routes.api_keys.LITE_LLM_API_URL', 'https://litellm.example.com')
+    @patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'https://litellm.example.com')
     async def test_verify_empty_key_returns_false(self):
         """Test that empty key returns False."""
         # Arrange

@@ -200,9 +200,10 @@ class TestLiteLlmManager:
                         mock_user_settings,
                     )
 
+                    # migrate_entries returns the user_settings unchanged
                     assert result is not None
-                    assert result.agent == 'CodeActAgent'
-                    assert result.llm_model == get_default_litellm_model()
+                    assert result.agent == 'TestAgent'
+                    assert result.llm_model == 'test-model'
                     assert result.llm_api_key.get_secret_value() == 'test-key'
                     assert result.llm_base_url == 'http://test.com'
 
@@ -305,9 +306,10 @@ class TestLiteLlmManager:
                                 mock_user_settings,
                             )
 
+                            # migrate_entries returns the user_settings unchanged
                             assert result is not None
-                            assert result.agent == 'CodeActAgent'
-                            assert result.llm_model == get_default_litellm_model()
+                            assert result.agent == 'TestAgent'
+                            assert result.llm_model == 'test-model'
                             assert result.llm_api_key.get_secret_value() == 'test-key'
                             assert result.llm_base_url == 'http://test.com'
 

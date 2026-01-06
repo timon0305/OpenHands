@@ -98,3 +98,23 @@ export const selectOrganization = async ({
   const option = await screen.findByText(targetOrg.name);
   await userEvent.click(option);
 };
+
+export const createAxiosError = (
+  status: number,
+  statusText: string,
+  data: unknown,
+) =>
+  new AxiosError(
+    `Request failed with status code ${status}`,
+    "ERR_BAD_REQUEST",
+    undefined,
+    undefined,
+    {
+      status,
+      statusText,
+      data,
+      headers: {},
+      // @ts-expect-error - we only need the response object for this test
+      config: {},
+    },
+  );

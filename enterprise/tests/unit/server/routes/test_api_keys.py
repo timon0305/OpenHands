@@ -7,8 +7,8 @@ import pytest
 from fastapi import HTTPException
 from server.routes.api_keys import (
     get_llm_api_key_for_byor,
-    verify_byor_key_in_litellm,
 )
+from storage.lite_llm_manager import LiteLlmManager
 
 
 class TestVerifyByorKeyInLitellm:
@@ -32,7 +32,7 @@ class TestVerifyByorKeyInLitellm:
         mock_client_class.return_value = mock_client
 
         # Act
-        result = await verify_byor_key_in_litellm(byor_key, user_id)
+        result = await LiteLlmManager.verify_key(byor_key, user_id)
 
         # Assert
         assert result is True
@@ -58,7 +58,7 @@ class TestVerifyByorKeyInLitellm:
         mock_client_class.return_value = mock_client
 
         # Act
-        result = await verify_byor_key_in_litellm(byor_key, user_id)
+        result = await LiteLlmManager.verify_key(byor_key, user_id)
 
         # Assert
         assert result is False
@@ -80,7 +80,7 @@ class TestVerifyByorKeyInLitellm:
         mock_client_class.return_value = mock_client
 
         # Act
-        result = await verify_byor_key_in_litellm(byor_key, user_id)
+        result = await LiteLlmManager.verify_key(byor_key, user_id)
 
         # Assert
         assert result is False
@@ -103,7 +103,7 @@ class TestVerifyByorKeyInLitellm:
         mock_client_class.return_value = mock_client
 
         # Act
-        result = await verify_byor_key_in_litellm(byor_key, user_id)
+        result = await LiteLlmManager.verify_key(byor_key, user_id)
 
         # Assert
         assert result is False
@@ -123,7 +123,7 @@ class TestVerifyByorKeyInLitellm:
         mock_client_class.return_value = mock_client
 
         # Act
-        result = await verify_byor_key_in_litellm(byor_key, user_id)
+        result = await LiteLlmManager.verify_key(byor_key, user_id)
 
         # Assert
         assert result is False
@@ -143,7 +143,7 @@ class TestVerifyByorKeyInLitellm:
         mock_client_class.return_value = mock_client
 
         # Act
-        result = await verify_byor_key_in_litellm(byor_key, user_id)
+        result = await LiteLlmManager.verify_key(byor_key, user_id)
 
         # Assert
         assert result is False
@@ -157,7 +157,7 @@ class TestVerifyByorKeyInLitellm:
         user_id = 'user-123'
 
         # Act
-        result = await verify_byor_key_in_litellm(byor_key, user_id)
+        result = await LiteLlmManager.verify_key(byor_key, user_id)
 
         # Assert
         assert result is False
@@ -171,7 +171,7 @@ class TestVerifyByorKeyInLitellm:
         user_id = 'user-123'
 
         # Act
-        result = await verify_byor_key_in_litellm(byor_key, user_id)
+        result = await LiteLlmManager.verify_key(byor_key, user_id)
 
         # Assert
         assert result is False

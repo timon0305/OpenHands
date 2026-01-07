@@ -84,24 +84,24 @@ export function LoginContent({
   const buttonLabelClasses = "text-sm font-medium leading-5 px-1";
   return (
     <div
-      className="flex flex-col items-center w-full"
+      className="flex flex-col items-center w-full gap-12.5"
       data-testid="login-content"
     >
-      <div className="mb-6">
+      <div>
         <OpenHandsLogoWhite width={106} height={72} />
       </div>
 
-      <h1 className="text-[39px] leading-5 font-medium text-white text-center mb-6">
+      <h1 className="text-[39px] leading-5 font-medium text-white text-center">
         {t(I18nKey.AUTH$LETS_GET_STARTED)}
       </h1>
 
       {emailVerified && (
-        <p className="text-sm text-muted-foreground text-center mb-4">
+        <p className="text-sm text-muted-foreground text-center">
           {t(I18nKey.AUTH$EMAIL_VERIFIED_PLEASE_LOGIN)}
         </p>
       )}
       {hasDuplicatedEmail && (
-        <p className="text-sm text-danger text-center mb-4">
+        <p className="text-sm text-danger text-center">
           {t(I18nKey.AUTH$DUPLICATE_EMAIL_ERROR)}
         </p>
       )}
@@ -155,9 +155,7 @@ export function LoginContent({
         )}
       </div>
 
-      <div className="mt-4">
-        <TermsAndPrivacyNotice className="text-sm text-center text-muted-foreground leading-5" />
-      </div>
+      <TermsAndPrivacyNotice className="max-w-[320px] text-[#A3A3A3]" />
     </div>
   );
 }

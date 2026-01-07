@@ -10432,20 +10432,20 @@
     "uk": "Попросіть OpenHands ініціалізувати git-репозиторій, щоб активувати цей інтерфейс користувача."
   },
   "DIFF_VIEWER$NO_CHANGES": {
-    "en": "OpenHands hasn't made any changes yet...",
-    "ja": "OpenHandsはまだ変更を加えていません...",
-    "zh-CN": "OpenHands尚未进行任何更改...",
-    "zh-TW": "OpenHands尚未進行任何更改...",
-    "ko-KR": "OpenHands는 아직 변경하지 않았습니다...",
-    "no": "OpenHands har ikke gjort noen endringer ennå...",
-    "it": "OpenHands non ha ancora apportato modifiche...",
-    "pt": "O OpenHands ainda não fez nenhuma alteração...",
-    "es": "OpenHands aún no ha realizado ningún cambio...",
-    "ar": "لم يقم OpenHands بإجراء أي تغييرات بعد ...",
-    "fr": "OpenHands n'a pas encore apporté de modifications ...",
-    "tr": "OpenHands henüz herhangi bir değişiklik yapmadı ...",
-    "de": "OpenHands hat noch keine Änderungen vorgenommen...",
-    "uk": "OpenHands ще не вніс жодних змін..."
+    "en": "OpenHands hasn't made any changes yet",
+    "ja": "OpenHandsはまだ変更を加えていません",
+    "zh-CN": "OpenHands尚未进行任何更改",
+    "zh-TW": "OpenHands尚未進行任何更改",
+    "ko-KR": "OpenHands는 아직 변경하지 않았습니다",
+    "no": "OpenHands har ikke gjort noen endringer ennå",
+    "it": "OpenHands non ha ancora apportato modifiche",
+    "pt": "O OpenHands ainda não fez nenhuma alteração",
+    "es": "OpenHands aún no ha realizado ningún cambio",
+    "ar": "لم يقم OpenHands بإجراء أي تغييرات بعد",
+    "fr": "OpenHands n'a pas encore apporté de modifications",
+    "tr": "OpenHands henüz herhangi bir değişiklik yapmadı",
+    "de": "OpenHands hat noch keine Änderungen vorgenommen",
+    "uk": "OpenHands ще не вніс жодних змін"
   },
   "DIFF_VIEWER$WAITING_FOR_RUNTIME": {
     "en": "Waiting for runtime to start...",
@@ -14878,6 +14878,22 @@
     "tr": "Çalışıyor",
     "de": "Läuft",
     "uk": "Працює"
+  },
+  "COMMON$WAITING_FOR_SANDBOX": {
+    "en": "Waiting for sandbox",
+    "ja": "サンドボックスを待機中",
+    "zh-CN": "等待沙盒",
+    "zh-TW": "等待沙盒",
+    "ko-KR": "샌드박스를 기다리는 중",
+    "no": "Venter på sandkasse",
+    "it": "In attesa del sandbox",
+    "pt": "Aguardando sandbox",
+    "es": "Esperando el sandbox",
+    "ar": "في انتظار البيئة المعزولة",
+    "fr": "En attente du bac à sable",
+    "tr": "Sandbox bekleniyor",
+    "de": "Warten auf Sandbox",
+    "uk": "Очікування пісочниці"
   },
   "COMMON$SELECT_GIT_PROVIDER": {
     "en": "Select Git provider",

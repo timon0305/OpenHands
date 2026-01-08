@@ -100,6 +100,33 @@ async def get_credits(user_id: str = Depends(get_user_id)) -> GetCreditsResponse
     return GetCreditsResponse(credits=Decimal('{:.2f}'.format(credits)))
 
 
+# Endpoint to retrieve user's current subscription access
+@billing_router.get('/subscription-access')
+async def get_subscription_access(
+    user_id: str = Depends(get_user_id),
+) -> SubscriptionAccessResponse | None:
+    """Get details of the currently valid subscription for the user."""
+    with session_maker() as session:
+        now = datetime.now(UTC)
+        subscription_access = (
+            session.query(SubscriptionAccess)
+            .filter(SubscriptionAccess.status == 'ACTIVE')
+            .filter(SubscriptionAccess.user_id == user_id)
+            .filter(SubscriptionAccess.start_at <= now)
+            .filter(SubscriptionAccess.end_at >= now)
+            .first()
+        )
+        if not subscription_access:
+            return None
+        return SubscriptionAccessResponse(
+            start_at=subscription_access.start_at,
+            end_at=subscription_access.end_at,
+            created_at=subscription_access.created_at,
+            cancelled_at=subscription_access.cancelled_at,
+            stripe_subscription_id=subscription_access.stripe_subscription_id,
+        )
+
+
 # Endpoint to check if a user has entered a payment method into stripe
 @billing_router.post('/has-payment-method')
 async def has_payment_method(user_id: str = Depends(get_user_id)) -> bool:

@@ -1,6 +1,7 @@
 """Tests for auth_token_store.py, specifically the retry logic for token refresh race conditions."""
 
 import asyncio
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -10,19 +11,34 @@ from storage.auth_token_store import AuthTokenStore, TokenRefreshRaceError
 from openhands.integrations.service_types import ProviderType
 
 
+def create_mock_session_maker(execute_side_effect):
+    """Create a properly mocked async session maker.
+
+    Args:
+        execute_side_effect: A function or list that will be used as side_effect for execute()
+    """
+    mock_session = MagicMock()
+    mock_session.execute = AsyncMock(side_effect=execute_side_effect)
+    mock_session.commit = AsyncMock()
+
+    @asynccontextmanager
+    async def mock_begin():
+        yield
+
+    mock_session.begin = mock_begin
+
+    @asynccontextmanager
+    async def mock_session_context():
+        yield mock_session
+
+    mock_session_maker = MagicMock(side_effect=mock_session_context)
+    return mock_session_maker, mock_session
+
+
 @pytest.fixture
 def mock_session_maker():
     """Create a mock async session maker."""
-    session = AsyncMock()
-    session.__aenter__ = AsyncMock(return_value=session)
-    session.__aexit__ = AsyncMock(return_value=None)
-    session.begin = MagicMock(return_value=AsyncMock())
-    session.begin.return_value.__aenter__ = AsyncMock()
-    session.begin.return_value.__aexit__ = AsyncMock()
-
-    session_maker = MagicMock()
-    session_maker.return_value = session
-    return session_maker, session
+    return create_mock_session_maker(lambda q: MagicMock())
 
 
 @pytest.fixture
@@ -112,21 +128,10 @@ class TestLoadTokensRetryLogic:
         async def mock_check_expiration_and_refresh(*args):
             raise http_error
 
-        # Setup mock session
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-
-        # Mock for begin() context manager
-        mock_begin = AsyncMock()
-        mock_begin.__aenter__ = AsyncMock()
-        mock_begin.__aexit__ = AsyncMock()
-        mock_session.begin = MagicMock(return_value=mock_begin)
-
         # Setup execute to return different records on first and second call
         call_count = 0
 
-        async def mock_execute(query):
+        def mock_execute(query):
             nonlocal call_count
             call_count += 1
             result = MagicMock()
@@ -139,10 +144,7 @@ class TestLoadTokensRetryLogic:
             result.scalars.return_value = scalars
             return result
 
-        mock_session.execute = mock_execute
-
-        mock_session_maker = MagicMock()
-        mock_session_maker.return_value = mock_session
+        mock_session_maker, _ = create_mock_session_maker(mock_execute)
 
         store = AuthTokenStore(
             keycloak_user_id='test-user-id',
@@ -189,27 +191,14 @@ class TestLoadTokensRetryLogic:
         async def mock_check_expiration_and_refresh(*args):
             raise http_error
 
-        # Setup mock session
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-
-        mock_begin = AsyncMock()
-        mock_begin.__aenter__ = AsyncMock()
-        mock_begin.__aexit__ = AsyncMock()
-        mock_session.begin = MagicMock(return_value=mock_begin)
-
-        async def mock_execute(query):
+        def mock_execute(query):
             result = MagicMock()
             scalars = MagicMock()
             scalars.one_or_none.return_value = mock_token_record
             result.scalars.return_value = scalars
             return result
 
-        mock_session.execute = mock_execute
-
-        mock_session_maker = MagicMock()
-        mock_session_maker.return_value = mock_session
+        mock_session_maker, _ = create_mock_session_maker(mock_execute)
 
         store = AuthTokenStore(
             keycloak_user_id='test-user-id',
@@ -234,26 +223,14 @@ class TestLoadTokensRetryLogic:
         async def mock_check_no_refresh(*args):
             return None
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-
-        mock_begin = AsyncMock()
-        mock_begin.__aenter__ = AsyncMock()
-        mock_begin.__aexit__ = AsyncMock()
-        mock_session.begin = MagicMock(return_value=mock_begin)
-
-        async def mock_execute(query):
+        def mock_execute(query):
             result = MagicMock()
             scalars = MagicMock()
             scalars.one_or_none.return_value = mock_token_record
             result.scalars.return_value = scalars
             return result
 
-        mock_session.execute = mock_execute
-
-        mock_session_maker = MagicMock()
-        mock_session_maker.return_value = mock_session
+        mock_session_maker, _ = create_mock_session_maker(mock_execute)
 
         store = AuthTokenStore(
             keycloak_user_id='test-user-id',
@@ -270,26 +247,15 @@ class TestLoadTokensRetryLogic:
     @pytest.mark.asyncio
     async def test_load_tokens_returns_none_when_no_record(self):
         """Test that load_tokens returns None when no token record exists."""
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
 
-        mock_begin = AsyncMock()
-        mock_begin.__aenter__ = AsyncMock()
-        mock_begin.__aexit__ = AsyncMock()
-        mock_session.begin = MagicMock(return_value=mock_begin)
-
-        async def mock_execute(query):
+        def mock_execute(query):
             result = MagicMock()
             scalars = MagicMock()
             scalars.one_or_none.return_value = None
             result.scalars.return_value = scalars
             return result
 
-        mock_session.execute = mock_execute
-
-        mock_session_maker = MagicMock()
-        mock_session_maker.return_value = mock_session
+        mock_session_maker, _ = create_mock_session_maker(mock_execute)
 
         store = AuthTokenStore(
             keycloak_user_id='test-user-id',
@@ -324,30 +290,23 @@ class TestLoadTokensRetryLogic:
         async def mock_check_always_fails(*args):
             raise http_error
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
+        call_count = 0
 
-        mock_begin = AsyncMock()
-        mock_begin.__aenter__ = AsyncMock()
-        mock_begin.__aexit__ = AsyncMock()
-        mock_session.begin = MagicMock(return_value=mock_begin)
-
-        async def mock_execute(query):
+        def mock_execute(query):
+            nonlocal call_count
+            call_count += 1
             result = MagicMock()
             scalars = MagicMock()
-            # Always return old record with_for_update, None for retry reads
-            if 'with_for_update' in str(query) or hasattr(query, '_for_update_arg'):
+            # Odd calls (1,3,5) are with_for_update, return old record
+            # Even calls (2,4,6) are retry reads, return None (no updated tokens)
+            if call_count % 2 == 1:
                 scalars.one_or_none.return_value = mock_token_record
             else:
-                scalars.one_or_none.return_value = None  # Simulate no updated tokens
+                scalars.one_or_none.return_value = None
             result.scalars.return_value = scalars
             return result
 
-        mock_session.execute = mock_execute
-
-        mock_session_maker = MagicMock()
-        mock_session_maker.return_value = mock_session
+        mock_session_maker, _ = create_mock_session_maker(mock_execute)
 
         store = AuthTokenStore(
             keycloak_user_id='test-user-id',
@@ -390,18 +349,9 @@ class TestLoadTokensRetryLogic:
         async def mock_check_always_fails(*args):
             raise http_error
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-
-        mock_begin = AsyncMock()
-        mock_begin.__aenter__ = AsyncMock()
-        mock_begin.__aexit__ = AsyncMock()
-        mock_session.begin = MagicMock(return_value=mock_begin)
-
         call_count = 0
 
-        async def mock_execute(query):
+        def mock_execute(query):
             nonlocal call_count
             call_count += 1
             result = MagicMock()
@@ -419,10 +369,7 @@ class TestLoadTokensRetryLogic:
             result.scalars.return_value = scalars
             return result
 
-        mock_session.execute = mock_execute
-
-        mock_session_maker = MagicMock()
-        mock_session_maker.return_value = mock_session
+        mock_session_maker, _ = create_mock_session_maker(mock_execute)
 
         store = AuthTokenStore(
             keycloak_user_id='test-user-id',

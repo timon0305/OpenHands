@@ -2,6 +2,7 @@
 import typing
 from datetime import UTC, datetime
 from decimal import Decimal
+from enum import Enum
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -15,6 +16,7 @@ from server.logger import logger
 from storage.billing_session import BillingSession
 from storage.database import session_maker
 from storage.lite_llm_manager import LiteLlmManager
+from storage.subscription_access import SubscriptionAccess
 from storage.user_store import UserStore
 
 from openhands.server.user_auth import get_user_id
@@ -55,8 +57,21 @@ def validate_saas_environment(request: Request) -> None:
         )
 
 
+class BillingSessionType(Enum):
+    DIRECT_PAYMENT = 'DIRECT_PAYMENT'
+    MONTHLY_SUBSCRIPTION = 'MONTHLY_SUBSCRIPTION'
+
+
 class GetCreditsResponse(BaseModel):
     credits: Decimal | None = None
+
+
+class SubscriptionAccessResponse(BaseModel):
+    start_at: datetime
+    end_at: datetime
+    created_at: datetime
+    cancelled_at: datetime | None = None
+    stripe_subscription_id: str | None = None
 
 
 class CreateCheckoutSessionRequest(BaseModel):

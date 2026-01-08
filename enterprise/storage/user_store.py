@@ -42,6 +42,7 @@ class UserStore:
                 name=f'user_{user_id}_org',
                 contact_name=user_info['preferred_username'],
                 contact_email=user_info['email'],
+                v1_enabled=True,
             )
             session.add(org)
 

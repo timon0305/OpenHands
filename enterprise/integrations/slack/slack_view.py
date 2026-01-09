@@ -517,7 +517,7 @@ class SlackUpdateExistingConversationView(SlackNewConversationView):
         self,
         user_id: str,
         conversation_init_data,
-        providers_set: list[str],
+        providers_set: list[ProviderType],
         max_wait_seconds: int = 120,
         poll_interval_seconds: float = 2.0,
     ):

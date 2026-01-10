@@ -249,6 +249,7 @@ async def test_keycloak_callback_email_not_verified(mock_request):
         assert isinstance(result, RedirectResponse)
         assert result.status_code == 302
         assert 'email_verification_required=true' in result.headers['location']
+        assert 'user_id=test_user_id' in result.headers['location']
         mock_verify_email.assert_called_once_with(
             request=mock_request, user_id='test_user_id', is_auth_flow=True
         )
@@ -287,6 +288,7 @@ async def test_keycloak_callback_email_not_verified_missing_field(mock_request):
         assert isinstance(result, RedirectResponse)
         assert result.status_code == 302
         assert 'email_verification_required=true' in result.headers['location']
+        assert 'user_id=test_user_id' in result.headers['location']
         mock_verify_email.assert_called_once_with(
             request=mock_request, user_id='test_user_id', is_auth_flow=True
         )
@@ -544,7 +546,6 @@ async def test_keycloak_callback_blocked_email_domain(mock_request):
         )
         mock_token_manager.disable_keycloak_user = AsyncMock()
 
-        mock_domain_blocker.is_active.return_value = True
         mock_domain_blocker.is_domain_blocked.return_value = True
 
         # Act
@@ -598,7 +599,6 @@ async def test_keycloak_callback_allowed_email_domain(mock_request):
         mock_token_manager.store_idp_tokens = AsyncMock()
         mock_token_manager.validate_offline_token = AsyncMock(return_value=True)
 
-        mock_domain_blocker.is_active.return_value = True
         mock_domain_blocker.is_domain_blocked.return_value = False
 
         mock_verifier.is_active.return_value = True
@@ -619,7 +619,7 @@ async def test_keycloak_callback_allowed_email_domain(mock_request):
 
 @pytest.mark.asyncio
 async def test_keycloak_callback_domain_blocking_inactive(mock_request):
-    """Test keycloak_callback when domain blocking is not active."""
+    """Test keycloak_callback when email domain is not blocked."""
     # Arrange
     with (
         patch('server.routes.auth.token_manager') as mock_token_manager,
@@ -652,7 +652,7 @@ async def test_keycloak_callback_domain_blocking_inactive(mock_request):
         mock_token_manager.store_idp_tokens = AsyncMock()
         mock_token_manager.validate_offline_token = AsyncMock(return_value=True)
 
-        mock_domain_blocker.is_active.return_value = False
+        mock_domain_blocker.is_domain_blocked.return_value = False
 
         mock_verifier.is_active.return_value = True
         mock_verifier.is_user_allowed.return_value = True
@@ -664,7 +664,7 @@ async def test_keycloak_callback_domain_blocking_inactive(mock_request):
 
         # Assert
         assert isinstance(result, RedirectResponse)
-        mock_domain_blocker.is_domain_blocked.assert_not_called()
+        mock_domain_blocker.is_domain_blocked.assert_called_once_with('user@colsch.us')
         mock_token_manager.disable_keycloak_user.assert_not_called()
 
 
@@ -702,8 +702,6 @@ async def test_keycloak_callback_missing_email(mock_request):
         )
         mock_token_manager.store_idp_tokens = AsyncMock()
         mock_token_manager.validate_offline_token = AsyncMock(return_value=True)
-
-        mock_domain_blocker.is_active.return_value = True
 
         mock_verifier.is_active.return_value = True
         mock_verifier.is_user_allowed.return_value = True

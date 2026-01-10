@@ -797,7 +797,15 @@ class TestLiveStatusAppConversationService:
         """Test _finalize_conversation_request with skills loading."""
         # Arrange
         mock_agent = Mock(spec=Agent)
+
+        # Create mock LLM with required attributes for _update_agent_with_llm_metadata
+        mock_llm = Mock(spec=LLM)
+        mock_llm.model = 'gpt-4'  # Non-openhands model, so no metadata update
+        mock_llm.usage_id = 'agent'
+
         mock_updated_agent = Mock(spec=Agent)
+        mock_updated_agent.llm = mock_llm
+        mock_updated_agent.condenser = None  # No condenser
         mock_experiment_manager.run_agent_variant_tests__v1.return_value = (
             mock_updated_agent
         )
@@ -856,7 +864,15 @@ class TestLiveStatusAppConversationService:
         """Test _finalize_conversation_request without remote workspace (no skills)."""
         # Arrange
         mock_agent = Mock(spec=Agent)
+
+        # Create mock LLM with required attributes for _update_agent_with_llm_metadata
+        mock_llm = Mock(spec=LLM)
+        mock_llm.model = 'gpt-4'  # Non-openhands model, so no metadata update
+        mock_llm.usage_id = 'agent'
+
         mock_updated_agent = Mock(spec=Agent)
+        mock_updated_agent.llm = mock_llm
+        mock_updated_agent.condenser = None  # No condenser
         mock_experiment_manager.run_agent_variant_tests__v1.return_value = (
             mock_updated_agent
         )
@@ -894,7 +910,15 @@ class TestLiveStatusAppConversationService:
         """Test _finalize_conversation_request when skills loading fails."""
         # Arrange
         mock_agent = Mock(spec=Agent)
+
+        # Create mock LLM with required attributes for _update_agent_with_llm_metadata
+        mock_llm = Mock(spec=LLM)
+        mock_llm.model = 'gpt-4'  # Non-openhands model, so no metadata update
+        mock_llm.usage_id = 'agent'
+
         mock_updated_agent = Mock(spec=Agent)
+        mock_updated_agent.llm = mock_llm
+        mock_updated_agent.condenser = None  # No condenser
         mock_experiment_manager.run_agent_variant_tests__v1.return_value = (
             mock_updated_agent
         )

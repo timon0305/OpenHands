@@ -212,7 +212,9 @@ class TestLoadSpecialFiles:
     @patch(
         'openhands.app_server.app_conversation.skill_loader._read_file_from_workspace'
     )
-    async def test_load_all_special_files(self, mock_read_file, mock_async_remote_workspace):
+    async def test_load_all_special_files(
+        self, mock_read_file, mock_async_remote_workspace
+    ):
         """Test loading all special files successfully."""
         mock_read_file.side_effect = [
             'cursorrules content',
@@ -231,7 +233,9 @@ class TestLoadSpecialFiles:
     @patch(
         'openhands.app_server.app_conversation.skill_loader._read_file_from_workspace'
     )
-    async def test_load_partial_special_files(self, mock_read_file, mock_async_remote_workspace):
+    async def test_load_partial_special_files(
+        self, mock_read_file, mock_async_remote_workspace
+    ):
         """Test loading when only some special files exist."""
         mock_read_file.side_effect = ['cursorrules content', None, None]
 

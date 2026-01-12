@@ -1,12 +1,11 @@
 import logging
-from typing import Any
 from uuid import UUID
 
 import httpx
-from github import Auth, Github, GithubIntegration
 from integrations.utils import CONVERSATION_URL, get_summary_instruction
 from pydantic import Field
-from server.auth.constants import GITHUB_APP_CLIENT_ID, GITHUB_APP_PRIVATE_KEY
+from slack_sdk import WebClient
+from storage.slack_team_store import SlackTeamStore
 
 from openhands.agent_server.models import AskAgentRequest, AskAgentResponse
 from openhands.app_server.event_callback.event_callback_models import (
@@ -28,12 +27,10 @@ from openhands.sdk.event import ConversationStateUpdateEvent
 _logger = logging.getLogger(__name__)
 
 
-class GithubV1CallbackProcessor(EventCallbackProcessor):
-    """Callback processor for GitHub V1 integrations."""
+class SlackV1CallbackProcessor(EventCallbackProcessor):
+    """Callback processor for Slack V1 integrations."""
 
-    github_view_data: dict[str, Any] = Field(default_factory=dict)
-    should_request_summary: bool = Field(default=True)
-    inline_pr_comment: bool = Field(default=False)
+    slack_view_data: dict[str, str | None] = Field(default_factory=dict)
 
     async def __call__(
         self,
@@ -41,7 +38,7 @@ class GithubV1CallbackProcessor(EventCallbackProcessor):
         callback: EventCallback,
         event: Event,
     ) -> EventCallbackResult | None:
-        """Process events for GitHub V1 integration."""
+        """Process events for Slack V1 integration."""
 
         # Only handle ConversationStateUpdateEvent
         if not isinstance(event, ConversationStateUpdateEvent):
@@ -51,24 +48,11 @@ class GithubV1CallbackProcessor(EventCallbackProcessor):
         if not (event.key == 'execution_status' and event.value == 'finished'):
             return None
 
-        _logger.info('[GitHub V1] Callback agent state was %s', event)
-        _logger.info(
-            '[GitHub V1] Should request summary: %s', self.should_request_summary
-        )
-
-        if not self.should_request_summary:
-            return None
-
-        self.should_request_summary = False
+        _logger.info('[Slack V1] Callback agent state was %s', event)
 
         try:
-            _logger.info(f'[GitHub V1] Requesting summary {conversation_id}')
             summary = await self._request_summary(conversation_id)
-            _logger.info(
-                f'[GitHub V1] Posting summary {conversation_id}',
-                extra={'summary': summary},
-            )
-            await self._post_summary_to_github(summary)
+            await self._post_summary_to_slack(summary)
 
             return EventCallbackResult(
                 status=EventCallbackResultStatus.SUCCESS,
@@ -78,24 +62,18 @@ class GithubV1CallbackProcessor(EventCallbackProcessor):
                 detail=summary,
             )
         except Exception as e:
-            _logger.exception('[GitHub V1] Error processing callback: %s', e)
+            _logger.exception('[Slack V1] Error processing callback: %s', e)
 
-            # Only try to post error to GitHub if we have basic requirements
+            # Only try to post error to Slack if we have basic requirements
             try:
-                # Check if we have installation ID and credentials before posting
-                if (
-                    self.github_view_data.get('installation_id')
-                    and GITHUB_APP_CLIENT_ID
-                    and GITHUB_APP_PRIVATE_KEY
-                ):
-                    await self._post_summary_to_github(
-                        f'OpenHands encountered an error: **{str(e)}**.\n\n'
-                        f'[See the conversation]({CONVERSATION_URL.format(conversation_id)})'
-                        'for more information.'
-                    )
+                await self._post_summary_to_slack(
+                    f'OpenHands encountered an error: **{str(e)}**.\n\n'
+                    f'[See the conversation]({CONVERSATION_URL.format(conversation_id)})'
+                    'for more information.'
+                )
             except Exception as post_error:
                 _logger.warning(
-                    '[GitHub V1] Failed to post error message to GitHub: %s', post_error
+                    '[Slack V1] Failed to post error message to Slack: %s', post_error
                 )
 
             return EventCallbackResult(
@@ -107,49 +85,52 @@ class GithubV1CallbackProcessor(EventCallbackProcessor):
             )
 
     # -------------------------------------------------------------------------
-    # GitHub helpers
+    # Slack helpers
     # -------------------------------------------------------------------------
 
-    def _get_installation_access_token(self) -> str:
-        installation_id = self.github_view_data.get('installation_id')
+    def _get_bot_access_token(self):
+        slack_team_store = SlackTeamStore.get_instance()
+        bot_access_token = slack_team_store.get_team_bot_token(
+            self.slack_view_data['team_id']
+        )
 
-        if not installation_id:
-            raise ValueError(
-                f'Missing installation ID for GitHub payload: {self.github_view_data}'
+        return bot_access_token
+
+    async def _post_summary_to_slack(self, summary: str) -> None:
+        """Post a summary message to the configured Slack channel."""
+        bot_access_token = self._get_bot_access_token()
+        if not bot_access_token:
+            raise RuntimeError('Missing Slack bot access token')
+
+        channel_id = self.slack_view_data['channel_id']
+        thread_ts = self.slack_view_data.get('thread_ts') or self.slack_view_data.get(
+            'message_ts'
+        )
+
+        client = WebClient(token=bot_access_token)
+
+        try:
+            # Post the summary as a threaded reply
+            response = client.chat_postMessage(
+                channel=channel_id,
+                text=summary,
+                thread_ts=thread_ts,
+                unfurl_links=False,
+                unfurl_media=False,
             )
 
-        if not GITHUB_APP_CLIENT_ID or not GITHUB_APP_PRIVATE_KEY:
-            raise ValueError('GitHub App credentials are not configured')
-
-        github_integration = GithubIntegration(
-            auth=Auth.AppAuth(GITHUB_APP_CLIENT_ID, GITHUB_APP_PRIVATE_KEY),
-        )
-        token_data = github_integration.get_access_token(installation_id)
-        return token_data.token
-
-    async def _post_summary_to_github(self, summary: str) -> None:
-        """Post a summary comment to the configured GitHub issue."""
-        installation_token = self._get_installation_access_token()
-
-        if not installation_token:
-            raise RuntimeError('Missing GitHub credentials')
-
-        full_repo_name = self.github_view_data['full_repo_name']
-        issue_number = self.github_view_data['issue_number']
-
-        if self.inline_pr_comment:
-            with Github(auth=Auth.Token(installation_token)) as github_client:
-                repo = github_client.get_repo(full_repo_name)
-                pr = repo.get_pull(issue_number)
-                pr.create_review_comment_reply(
-                    comment_id=self.github_view_data.get('comment_id', ''), body=summary
+            if not response['ok']:
+                raise RuntimeError(
+                    f"Slack API error: {response.get('error', 'Unknown error')}"
                 )
-            return
 
-        with Github(auth=Auth.Token(installation_token)) as github_client:
-            repo = github_client.get_repo(full_repo_name)
-            issue = repo.get_issue(number=issue_number)
-            issue.create_comment(summary)
+            _logger.info(
+                '[Slack V1] Successfully posted summary to channel %s', channel_id
+            )
+
+        except Exception as e:
+            _logger.error('[Slack V1] Failed to post message to Slack: %s', e)
+            raise
 
     # -------------------------------------------------------------------------
     # Agent / sandbox helpers
@@ -195,7 +176,7 @@ class GithubV1CallbackProcessor(EventCallbackProcessor):
                 pass
 
             _logger.error(
-                '[GitHub V1] HTTP error sending message to %s: %s. '
+                '[Slack V1] HTTP error sending message to %s: %s. '
                 'Request payload: %s. Response headers: %s',
                 url,
                 error_detail,
@@ -208,7 +189,7 @@ class GithubV1CallbackProcessor(EventCallbackProcessor):
         except httpx.TimeoutException:
             error_detail = f'Request timeout after 30 seconds to {url}'
             _logger.error(
-                '[GitHub V1] %s. Request payload: %s',
+                '[Slack V1] %s. Request payload: %s',
                 error_detail,
                 payload,
                 exc_info=True,
@@ -218,7 +199,7 @@ class GithubV1CallbackProcessor(EventCallbackProcessor):
         except httpx.RequestError as e:
             error_detail = f'Request error to {url}: {str(e)}'
             _logger.error(
-                '[GitHub V1] %s. Request payload: %s',
+                '[Slack V1] %s. Request payload: %s',
                 error_detail,
                 payload,
                 exc_info=True,
@@ -277,7 +258,6 @@ class GithubV1CallbackProcessor(EventCallbackProcessor):
             ), f'No session API key for sandbox: {sandbox.id}'
 
             # 3. URL + instruction
-            agent_server_url = get_agent_server_url_from_sandbox(sandbox)
             agent_server_url = get_agent_server_url_from_sandbox(sandbox)
 
             # Prepare message based on agent state

@@ -1,7 +1,7 @@
 """create org tables from pgerd schema
 
-Revision ID: 088
-Revises: 087
+Revision ID: 089
+Revises: 088
 Create Date: 2025-01-07 00:00:00.000000
 
 """
@@ -13,8 +13,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '088'
-down_revision: Union[str, None] = '087'
+revision: str = '089'
+down_revision: Union[str, None] = '088'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

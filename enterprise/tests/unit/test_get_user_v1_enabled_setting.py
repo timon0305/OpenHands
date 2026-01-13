@@ -24,9 +24,7 @@ def mock_dependencies(mock_org):
     with patch(
         'integrations.utils.call_sync_from_async',
         return_value=mock_org,
-    ) as mock_call_sync, patch(
-        'integrations.utils.OrgStore'
-    ) as mock_org_store:
+    ) as mock_call_sync, patch('integrations.utils.OrgStore') as mock_org_store:
         yield {
             'call_sync': mock_call_sync,
             'org_store': mock_org_store,

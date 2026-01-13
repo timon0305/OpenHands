@@ -19,10 +19,10 @@ def mock_org():
 def mock_dependencies(mock_org):
     """Fixture that patches all the common dependencies."""
     with patch(
-        'integrations.github.github_view.call_sync_from_async',
+        'integrations.utils.call_sync_from_async',
         return_value=mock_org,
     ) as mock_call_sync, patch(
-        'integrations.github.github_view.OrgStore'
+        'integrations.utils.OrgStore'
     ) as mock_org_store:
         yield {
             'call_sync': mock_call_sync,

@@ -323,6 +323,16 @@ class UserStore:
                     asyncio.sleep, GENERAL_TIMEOUT, _RETRY_LOAD_DELAY_SECONDS
                 )
 
+            # Check for user again as migration could have happened while trying to get the lock.
+            user = (
+                session.query(User)
+                .options(joinedload(User.org_members))
+                .filter(User.id == uuid.UUID(user_id))
+                .first()
+            )
+            if user:
+                return user
+
             user_settings = (
                 session.query(UserSettings)
                 .filter(

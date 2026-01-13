@@ -896,7 +896,7 @@ class TestLiveStatusAppConversationService:
 
         # Assert
         assert isinstance(result, StartConversationRequest)
-        assert isinstance(result.conversation_id, UUID)
+        assert result.conversation_id is None
         assert result.agent == mock_updated_agent
         mock_experiment_manager.run_agent_variant_tests__v1.assert_called_once()
 

@@ -134,7 +134,7 @@ class UserStore:
     ) -> User:
         if not user_id or not user_settings:
             return None
-        while not await UserStore._acquire_user_creation_lock():
+        while not await UserStore._acquire_user_creation_lock(user_id):
             # The user is already being created in another thread / process
             logger.info(
                 'saas_settings_store:create_default_settings:waiting_for_lock',

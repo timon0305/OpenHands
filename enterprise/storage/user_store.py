@@ -134,13 +134,6 @@ class UserStore:
     ) -> User:
         if not user_id or not user_settings:
             return None
-        while not await UserStore._acquire_user_creation_lock(user_id):
-            # The user is already being created in another thread / process
-            logger.info(
-                'saas_settings_store:create_default_settings:waiting_for_lock',
-                extra={'user_id': user_id},
-            )
-            await asyncio.sleep(_RETRY_LOAD_DELAY_SECONDS)
 
         kwargs = decrypt_legacy_model(
             [
@@ -318,6 +311,18 @@ class UserStore:
                 return user
 
             # Check if we need to migrate from user_settings
+            while not call_async_from_sync(
+                UserStore._acquire_user_creation_lock, GENERAL_TIMEOUT, user_id
+            ):
+                # The user is already being created in another thread / process
+                logger.info(
+                    'saas_settings_store:create_default_settings:waiting_for_lock',
+                    extra={'user_id': user_id},
+                )
+                call_async_from_sync(
+                    asyncio.sleep, GENERAL_TIMEOUT, _RETRY_LOAD_DELAY_SECONDS
+                )
+
             user_settings = (
                 session.query(UserSettings)
                 .filter(

@@ -235,7 +235,7 @@ class SaasSettingsStore(SettingsStore):
         generated_key = await LiteLlmManager.generate_key(
             self.user_id,
             org_id,
-            f'Openhands Provider Key - user {self.user_id}',
+            None,
             {'type': 'openhands'},
         )
 

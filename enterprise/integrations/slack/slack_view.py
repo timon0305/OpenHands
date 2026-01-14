@@ -384,7 +384,7 @@ class SlackUpdateExistingConversationView(SlackNewConversationView):
 
         # Either join ongoing conversation, or restart the conversation
         # If runtime is stopped, this will start it in the background
-        agent_loop_info = await conversation_manager.maybe_start_agent_loop(
+        _agent_loop_info = await conversation_manager.maybe_start_agent_loop(
             self.conversation_id, conversation_init_data, user_id
         )
 

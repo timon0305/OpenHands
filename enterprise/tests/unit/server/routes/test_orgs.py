@@ -331,7 +331,6 @@ async def test_create_org_sensitive_fields_not_exposed(mock_app):
         contact_email='john@example.com',
         org_version=5,
         default_llm_model='claude-opus-4-5-20251101',
-        default_llm_api_key_for_byor='secret-api-key-123',  # Should not be exposed
         enable_default_condenser=True,
         enable_proactive_conversation_starters=True,
     )

@@ -2,6 +2,7 @@
 Store class for managing users.
 """
 
+import asyncio
 import uuid
 from typing import Optional
 
@@ -9,6 +10,7 @@ from server.constants import (
     LITE_LLM_API_URL,
     ORG_SETTINGS_VERSION,
     PERSONAL_WORKSPACE_VERSION_TO_MODEL,
+    get_default_litellm_model,
 )
 from server.logger import logger
 from sqlalchemy import text
@@ -22,6 +24,13 @@ from storage.user import User
 from storage.user_settings import UserSettings
 
 from openhands.utils.async_utils import GENERAL_TIMEOUT, call_async_from_sync
+
+# The max possible time to wait for another process to finish creating a user before retrying
+_REDIS_CREATE_TIMEOUT_SECONDS = 30
+# The delay to wait for another process to finish creating a user before trying to load again
+_RETRY_LOAD_DELAY_SECONDS = 2
+# Redis key prefix for user creation locks
+_REDIS_USER_CREATION_KEY_PREFIX = 'create_user:'
 
 
 class UserStore:
@@ -41,6 +50,7 @@ class UserStore:
                 name=f'user_{user_id}_org',
                 contact_name=user_info['preferred_username'],
                 contact_email=user_info['email'],
+                v1_enabled=True,
             )
             session.add(org)
 
@@ -72,6 +82,9 @@ class UserStore:
             from storage.org_member_store import OrgMemberStore
 
             org_member_kwargs = OrgMemberStore.get_kwargs_from_settings(settings)
+            # avoid setting org member llm fields to use org defaults on user creation
+            del org_member_kwargs['llm_model']
+            del org_member_kwargs['llm_base_url']
             org_member = OrgMember(
                 org_id=org.id,
                 user_id=user.id,
@@ -84,6 +97,34 @@ class UserStore:
             session.refresh(user)
             user.org_members  # load org_members
             return user
+
+    @staticmethod
+    def _get_redis_client():
+        """Get the Redis client from the Socket.IO manager."""
+        from openhands.server.shared import sio
+
+        return getattr(sio.manager, 'redis', None)
+
+    @staticmethod
+    async def _acquire_user_creation_lock(user_id: str) -> bool:
+        """Attempt to acquire a distributed lock for user creation.
+
+        Returns True if the lock was acquired or if Redis is unavailable (fallback to no locking).
+        Returns False if another process holds the lock.
+        """
+        redis_client = UserStore._get_redis_client()
+        if redis_client is None:
+            logger.warning(
+                'saas_settings_store:_acquire_user_creation_lock:no_redis_client',
+                extra={'user_id': user_id},
+            )
+            return True  # Proceed without locking if Redis is unavailable
+
+        user_key = f'{_REDIS_USER_CREATION_KEY_PREFIX}{user_id}'
+        lock_acquired = await redis_client.set(
+            user_key, 1, nx=True, ex=_REDIS_CREATE_TIMEOUT_SECONDS
+        )
+        return bool(lock_acquired)
 
     @staticmethod
     async def migrate_user(
@@ -123,6 +164,10 @@ class UserStore:
                 decrypted_user_settings,
             )
 
+            custom_settings = UserStore._has_custom_settings(
+                decrypted_user_settings, user_settings.user_version
+            )
+
             # avoids circular reference. This migrate method is temprorary until all users are migrated.
             from integrations.stripe_service import migrate_customer
 
@@ -132,6 +177,13 @@ class UserStore:
 
             org_kwargs = OrgStore.get_kwargs_from_user_settings(decrypted_user_settings)
             org_kwargs.pop('id', None)
+
+            # if user has custom settings, set org defaults to current version
+            if custom_settings:
+                org_kwargs['default_llm_model'] = get_default_litellm_model()
+                org_kwargs['llm_base_url'] = LITE_LLM_API_URL
+                org_kwargs['org_version'] = ORG_SETTINGS_VERSION
+
             for key, value in org_kwargs.items():
                 if hasattr(org, key):
                     setattr(org, key, value)
@@ -158,9 +210,7 @@ class UserStore:
 
             # if the user did not have custom settings in the old model,
             # then use the org defaults by not setting org_member fields
-            if not UserStore._has_custom_settings(
-                decrypted_user_settings, user_settings.user_version
-            ):
+            if not custom_settings:
                 del org_member_kwargs['llm_model']
                 del org_member_kwargs['llm_base_url']
                 del org_member_kwargs['llm_api_key_for_byor']
@@ -261,6 +311,28 @@ class UserStore:
                 return user
 
             # Check if we need to migrate from user_settings
+            while not call_async_from_sync(
+                UserStore._acquire_user_creation_lock, GENERAL_TIMEOUT, user_id
+            ):
+                # The user is already being created in another thread / process
+                logger.info(
+                    'saas_settings_store:create_default_settings:waiting_for_lock',
+                    extra={'user_id': user_id},
+                )
+                call_async_from_sync(
+                    asyncio.sleep, GENERAL_TIMEOUT, _RETRY_LOAD_DELAY_SECONDS
+                )
+
+            # Check for user again as migration could have happened while trying to get the lock.
+            user = (
+                session.query(User)
+                .options(joinedload(User.org_members))
+                .filter(User.id == uuid.UUID(user_id))
+                .first()
+            )
+            if user:
+                return user
+
             user_settings = (
                 session.query(UserSettings)
                 .filter(

@@ -60,13 +60,12 @@ async def track_runtime_wait():
 
     if _current_wait_count >= MAX_CONCURRENT_RUNTIME_WAITS:
         RUNTIME_WAIT_COMPLETED.labels(status='rejected').inc()
-        logger.warning(
+        logger.error(
             f'Slack runtime wait rejected: {_current_wait_count} already waiting '
             f'(max: {MAX_CONCURRENT_RUNTIME_WAITS})'
         )
         raise TooManyWaitingError(
-            f'Too many messages waiting for runtime ({_current_wait_count}). '
-            'Please try again later.'
+            'Something went wrong. Please try again later.'
         )
 
     _current_wait_count += 1

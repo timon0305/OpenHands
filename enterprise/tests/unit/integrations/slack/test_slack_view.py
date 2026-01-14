@@ -615,7 +615,7 @@ class TestRuntimeWaitTracker:
                 async with track_runtime_wait():
                     pass
 
-            assert 'Too many messages waiting' in str(exc_info.value)
+            assert 'Something went wrong' in str(exc_info.value)
         finally:
             # Restore original values
             tracker.MAX_CONCURRENT_RUNTIME_WAITS = original_max

@@ -1,12 +1,13 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub, Outlet } from "react-router";
 import SecretsSettingsScreen from "#/routes/secrets-settings";
 import { SecretsService } from "#/api/secrets-service";
 import { GetSecretsResponse } from "#/api/secrets-service.types";
-import OpenHands from "#/api/open-hands";
+import SettingsService from "#/api/settings-service/settings-service.api";
+import OptionService from "#/api/option-service/option-service.api";
 import { MOCK_DEFAULT_USER_SETTINGS } from "#/mocks/handlers";
 
 const MOCK_GET_SECRETS_RESPONSE: GetSecretsResponse["custom_secrets"] = [
@@ -20,25 +21,25 @@ const MOCK_GET_SECRETS_RESPONSE: GetSecretsResponse["custom_secrets"] = [
   },
 ];
 
-const RouterStub = createRoutesStub([
-  {
-    Component: () => <Outlet />,
-    path: "/settings",
-    children: [
-      {
-        Component: SecretsSettingsScreen,
-        path: "/settings/secrets",
-      },
-      {
-        Component: () => <div data-testid="git-settings-screen" />,
-        path: "/settings/integrations",
-      },
-    ],
-  },
-]);
+const renderSecretsSettings = () => {
+  const RouterStub = createRoutesStub([
+    {
+      Component: () => <Outlet />,
+      path: "/settings",
+      children: [
+        {
+          Component: SecretsSettingsScreen,
+          path: "/settings/secrets",
+        },
+        {
+          Component: () => <div data-testid="git-settings-screen" />,
+          path: "/settings/integrations",
+        },
+      ],
+    },
+  ]);
 
-const renderSecretsSettings = () =>
-  render(<RouterStub initialEntries={["/settings/secrets"]} />, {
+  return render(<RouterStub initialEntries={["/settings/secrets"]} />, {
     wrapper: ({ children }) => (
       <QueryClientProvider
         client={
@@ -51,13 +52,18 @@ const renderSecretsSettings = () =>
       </QueryClientProvider>
     ),
   });
+};
 
 beforeEach(() => {
-  const getConfigSpy = vi.spyOn(OpenHands, "getConfig");
+  const getConfigSpy = vi.spyOn(OptionService, "getConfig");
   // @ts-expect-error - only return the config we need
   getConfigSpy.mockResolvedValue({
     APP_MODE: "oss",
   });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("Content", () => {
@@ -67,8 +73,8 @@ describe("Content", () => {
   });
 
   it("should NOT render a button to connect with git if they havent already in oss", async () => {
-    const getConfigSpy = vi.spyOn(OpenHands, "getConfig");
-    const getSettingsSpy = vi.spyOn(OpenHands, "getSettings");
+    const getConfigSpy = vi.spyOn(OptionService, "getConfig");
+    const getSettingsSpy = vi.spyOn(SettingsService, "getSettings");
     const getSecretsSpy = vi.spyOn(SecretsService, "getSecrets");
     // @ts-expect-error - only return the config we need
     getConfigSpy.mockResolvedValue({
@@ -86,28 +92,21 @@ describe("Content", () => {
     expect(screen.queryByTestId("connect-git-button")).not.toBeInTheDocument();
   });
 
-  it("should render a button to connect with git if they havent already in saas", async () => {
-    const getConfigSpy = vi.spyOn(OpenHands, "getConfig");
-    const getSettingsSpy = vi.spyOn(OpenHands, "getSettings");
+  it("should render add secret button in saas mode", async () => {
+    const getConfigSpy = vi.spyOn(OptionService, "getConfig");
     const getSecretsSpy = vi.spyOn(SecretsService, "getSecrets");
     // @ts-expect-error - only return the config we need
     getConfigSpy.mockResolvedValue({
       APP_MODE: "saas",
     });
-    getSettingsSpy.mockResolvedValue({
-      ...MOCK_DEFAULT_USER_SETTINGS,
-      provider_tokens_set: {},
-    });
 
     renderSecretsSettings();
 
-    // In SAAS mode, getSecrets is still called because the user is authenticated
+    // In SAAS mode, getSecrets is called and add secret button should be available
     await waitFor(() => expect(getSecretsSpy).toHaveBeenCalled());
-    await waitFor(() =>
-      expect(screen.queryByTestId("add-secret-button")).not.toBeInTheDocument(),
-    );
-    const button = await screen.findByTestId("connect-git-button");
-    expect(button).toHaveAttribute("href", "/settings/integrations");
+    const button = await screen.findByTestId("add-secret-button");
+    expect(button).toBeInTheDocument();
+    expect(screen.queryByTestId("connect-git-button")).not.toBeInTheDocument();
   });
 
   it("should render an empty table when there are no existing secrets", async () => {
@@ -483,7 +482,9 @@ describe("Secret actions", () => {
 
     // make POST request
     expect(createSecretSpy).not.toHaveBeenCalled();
-    expect(screen.queryByText("SECRETS$SECRET_ALREADY_EXISTS")).toBeInTheDocument();
+    expect(
+      screen.queryByText("SECRETS$SECRET_ALREADY_EXISTS"),
+    ).toBeInTheDocument();
 
     await userEvent.clear(nameInput);
     await userEvent.type(nameInput, "My_Custom_Secret");
@@ -505,6 +506,8 @@ describe("Secret actions", () => {
 
   it("should not submit whitespace secret names or values", async () => {
     const createSecretSpy = vi.spyOn(SecretsService, "createSecret");
+    const getSecretsSpy = vi.spyOn(SecretsService, "getSecrets");
+    getSecretsSpy.mockResolvedValue([]);
     renderSecretsSettings();
 
     // render form & hide items
@@ -536,9 +539,11 @@ describe("Secret actions", () => {
     await userEvent.click(submitButton);
 
     expect(createSecretSpy).not.toHaveBeenCalled();
-    expect(
-      screen.queryByText("SECRETS$SECRET_VALUE_REQUIRED"),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByText("SECRETS$SECRET_VALUE_REQUIRED"),
+      ).toBeInTheDocument();
+    });
   });
 
   it("should not reset ipout values on an invalid submit", async () => {
@@ -567,7 +572,9 @@ describe("Secret actions", () => {
 
     // make POST request
     expect(createSecretSpy).not.toHaveBeenCalled();
-    expect(screen.queryByText("SECRETS$SECRET_ALREADY_EXISTS")).toBeInTheDocument();
+    expect(
+      screen.queryByText("SECRETS$SECRET_ALREADY_EXISTS"),
+    ).toBeInTheDocument();
 
     expect(nameInput).toHaveValue(MOCK_GET_SECRETS_RESPONSE[0].name);
     expect(valueInput).toHaveValue("my-custom-secret-value");

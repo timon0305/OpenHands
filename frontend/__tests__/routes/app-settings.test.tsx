@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import AppSettingsScreen from "#/routes/app-settings";
-import OpenHands from "#/api/open-hands";
+import SettingsService from "#/api/settings-service/settings-service.api";
 import { MOCK_DEFAULT_USER_SETTINGS } from "#/mocks/handlers";
 import { AvailableLanguages } from "#/i18n";
 import * as CaptureConsent from "#/utils/handle-capture-consent";
@@ -25,7 +25,7 @@ describe("Content", () => {
   });
 
   it("should render the correct default values", async () => {
-    const getSettingsSpy = vi.spyOn(OpenHands, "getSettings");
+    const getSettingsSpy = vi.spyOn(SettingsService, "getSettings");
     getSettingsSpy.mockResolvedValue({
       ...MOCK_DEFAULT_USER_SETTINGS,
       language: "no",
@@ -43,6 +43,21 @@ describe("Content", () => {
       expect(language).toHaveValue("Norsk");
       expect(analytics).toBeChecked();
       expect(sound).toBeChecked();
+    });
+  });
+
+  it("should render analytics toggle as enabled when server returns null (opt-in by default)", async () => {
+    const getSettingsSpy = vi.spyOn(SettingsService, "getSettings");
+    getSettingsSpy.mockResolvedValue({
+      ...MOCK_DEFAULT_USER_SETTINGS,
+      user_consents_to_analytics: null,
+    });
+
+    renderAppSettingsScreen();
+
+    await waitFor(() => {
+      const analytics = screen.getByTestId("enable-analytics-switch");
+      expect(analytics).toBeChecked();
     });
   });
 
@@ -65,8 +80,8 @@ describe("Form submission", () => {
   });
 
   it("should submit the form with the correct values", async () => {
-    const saveSettingsSpy = vi.spyOn(OpenHands, "saveSettings");
-    const getSettingsSpy = vi.spyOn(OpenHands, "getSettings");
+    const saveSettingsSpy = vi.spyOn(SettingsService, "saveSettings");
+    const getSettingsSpy = vi.spyOn(SettingsService, "getSettings");
     getSettingsSpy.mockResolvedValue(MOCK_DEFAULT_USER_SETTINGS);
 
     renderAppSettingsScreen();
@@ -106,7 +121,7 @@ describe("Form submission", () => {
   });
 
   it("should only enable the submit button when there are changes", async () => {
-    const getSettingsSpy = vi.spyOn(OpenHands, "getSettings");
+    const getSettingsSpy = vi.spyOn(SettingsService, "getSettings");
     getSettingsSpy.mockResolvedValue(MOCK_DEFAULT_USER_SETTINGS);
 
     renderAppSettingsScreen();
@@ -146,7 +161,7 @@ describe("Form submission", () => {
   });
 
   it("should call handleCaptureConsents with true when the analytics switch is toggled", async () => {
-    const getSettingsSpy = vi.spyOn(OpenHands, "getSettings");
+    const getSettingsSpy = vi.spyOn(SettingsService, "getSettings");
     getSettingsSpy.mockResolvedValue(MOCK_DEFAULT_USER_SETTINGS);
 
     const handleCaptureConsentsSpy = vi.spyOn(
@@ -163,12 +178,15 @@ describe("Form submission", () => {
     await userEvent.click(submit);
 
     await waitFor(() =>
-      expect(handleCaptureConsentsSpy).toHaveBeenCalledWith(true),
+      expect(handleCaptureConsentsSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        true,
+      ),
     );
   });
 
   it("should call handleCaptureConsents with false when the analytics switch is toggled", async () => {
-    const getSettingsSpy = vi.spyOn(OpenHands, "getSettings");
+    const getSettingsSpy = vi.spyOn(SettingsService, "getSettings");
     getSettingsSpy.mockResolvedValue({
       ...MOCK_DEFAULT_USER_SETTINGS,
       user_consents_to_analytics: true,
@@ -188,7 +206,10 @@ describe("Form submission", () => {
     await userEvent.click(submit);
 
     await waitFor(() =>
-      expect(handleCaptureConsentsSpy).toHaveBeenCalledWith(false),
+      expect(handleCaptureConsentsSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        false,
+      ),
     );
   });
 
@@ -215,8 +236,8 @@ describe("Form submission", () => {
   });
 
   it("should disable the button after submitting changes", async () => {
-    const saveSettingsSpy = vi.spyOn(OpenHands, "saveSettings");
-    const getSettingsSpy = vi.spyOn(OpenHands, "getSettings");
+    const saveSettingsSpy = vi.spyOn(SettingsService, "saveSettings");
+    const getSettingsSpy = vi.spyOn(SettingsService, "getSettings");
     getSettingsSpy.mockResolvedValue(MOCK_DEFAULT_USER_SETTINGS);
 
     renderAppSettingsScreen();
@@ -240,8 +261,8 @@ describe("Form submission", () => {
 
 describe("Status toasts", () => {
   it("should call displaySuccessToast when the settings are saved", async () => {
-    const saveSettingsSpy = vi.spyOn(OpenHands, "saveSettings");
-    const getSettingsSpy = vi.spyOn(OpenHands, "getSettings");
+    const saveSettingsSpy = vi.spyOn(SettingsService, "saveSettings");
+    const getSettingsSpy = vi.spyOn(SettingsService, "getSettings");
     getSettingsSpy.mockResolvedValue(MOCK_DEFAULT_USER_SETTINGS);
 
     const displaySuccessToastSpy = vi.spyOn(
@@ -265,8 +286,8 @@ describe("Status toasts", () => {
   });
 
   it("should call displayErrorToast when the settings fail to save", async () => {
-    const saveSettingsSpy = vi.spyOn(OpenHands, "saveSettings");
-    const getSettingsSpy = vi.spyOn(OpenHands, "getSettings");
+    const saveSettingsSpy = vi.spyOn(SettingsService, "saveSettings");
+    const getSettingsSpy = vi.spyOn(SettingsService, "getSettings");
     getSettingsSpy.mockResolvedValue(MOCK_DEFAULT_USER_SETTINGS);
 
     const displayErrorToastSpy = vi.spyOn(ToastHandlers, "displayErrorToast");

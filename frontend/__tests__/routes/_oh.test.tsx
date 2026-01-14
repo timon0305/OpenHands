@@ -8,12 +8,50 @@ import {
 import userEvent from "@testing-library/user-event";
 import MainApp from "#/routes/root-layout";
 import i18n from "#/i18n";
+import OptionService from "#/api/option-service/option-service.api";
 import * as CaptureConsent from "#/utils/handle-capture-consent";
-import OpenHands from "#/api/open-hands";
+import SettingsService from "#/api/settings-service/settings-service.api";
 import * as ToastHandlers from "#/utils/custom-toast-handlers";
 
 describe("frontend/routes/_oh", () => {
-  const RouteStub = createRoutesStub([{ Component: MainApp, path: "/" }]);
+  const { DEFAULT_FEATURE_FLAGS, useIsAuthedMock, useConfigMock } = vi.hoisted(
+    () => {
+      const defaultFeatureFlags = {
+        ENABLE_BILLING: false,
+        HIDE_LLM_SETTINGS: false,
+        ENABLE_JIRA: false,
+        ENABLE_JIRA_DC: false,
+        ENABLE_LINEAR: false,
+      };
+
+      return {
+        DEFAULT_FEATURE_FLAGS: defaultFeatureFlags,
+        useIsAuthedMock: vi.fn().mockReturnValue({
+          data: true,
+          isLoading: false,
+          isFetching: false,
+          isError: false,
+        }),
+        useConfigMock: vi.fn().mockReturnValue({
+          data: { APP_MODE: "oss", FEATURE_FLAGS: defaultFeatureFlags },
+          isLoading: false,
+        }),
+      };
+    },
+  );
+
+  vi.mock("#/hooks/query/use-is-authed", () => ({
+    useIsAuthed: () => useIsAuthedMock(),
+  }));
+
+  vi.mock("#/hooks/query/use-config", () => ({
+    useConfig: () => useConfigMock(),
+  }));
+
+  const RouteStub = createRoutesStub([
+    { Component: MainApp, path: "/" },
+    { Component: () => <div data-testid="login-page" />, path: "/login" },
+  ]);
 
   const { userIsAuthenticatedMock, settingsAreUpToDateMock } = vi.hoisted(
     () => ({
@@ -39,6 +77,17 @@ describe("frontend/routes/_oh", () => {
   });
 
   it("should render", async () => {
+    useIsAuthedMock.mockReturnValue({
+      data: true,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+    });
+    useConfigMock.mockReturnValue({
+      data: { APP_MODE: "oss", FEATURE_FLAGS: DEFAULT_FEATURE_FLAGS },
+      isLoading: false,
+    });
+
     renderWithProviders(<RouteStub />);
     await screen.findByTestId("root-layout");
   });
@@ -52,6 +101,17 @@ describe("frontend/routes/_oh", () => {
 
   it("should not render the AI config modal if the settings are up-to-date", async () => {
     settingsAreUpToDateMock.mockReturnValue(true);
+    useIsAuthedMock.mockReturnValue({
+      data: true,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+    });
+    useConfigMock.mockReturnValue({
+      data: { APP_MODE: "oss", FEATURE_FLAGS: DEFAULT_FEATURE_FLAGS },
+      isLoading: false,
+    });
+
     renderWithProviders(<RouteStub />);
 
     await waitFor(() => {
@@ -62,8 +122,8 @@ describe("frontend/routes/_oh", () => {
   // FIXME: This test fails when it shouldn't be, please investigate
   it.skip("should render and capture the user's consent if oss mode", async () => {
     const user = userEvent.setup();
-    const getConfigSpy = vi.spyOn(OpenHands, "getConfig");
-    const getSettingsSpy = vi.spyOn(OpenHands, "getSettings");
+    const getConfigSpy = vi.spyOn(OptionService, "getConfig");
+    const getSettingsSpy = vi.spyOn(SettingsService, "getSettings");
     const handleCaptureConsentSpy = vi.spyOn(
       CaptureConsent,
       "handleCaptureConsent",
@@ -106,7 +166,7 @@ describe("frontend/routes/_oh", () => {
   });
 
   it("should not render the user consent form if saas mode", async () => {
-    const getConfigSpy = vi.spyOn(OpenHands, "getConfig");
+    const getConfigSpy = vi.spyOn(OptionService, "getConfig");
     getConfigSpy.mockResolvedValue({
       APP_MODE: "saas",
       GITHUB_CLIENT_ID: "test-id",
@@ -118,6 +178,10 @@ describe("frontend/routes/_oh", () => {
         ENABLE_JIRA_DC: false,
         ENABLE_LINEAR: false,
       },
+    });
+    useConfigMock.mockReturnValue({
+      data: { APP_MODE: "saas", FEATURE_FLAGS: DEFAULT_FEATURE_FLAGS },
+      isLoading: false,
     });
 
     renderWithProviders(<RouteStub />);
@@ -184,8 +248,8 @@ describe("frontend/routes/_oh", () => {
   });
 
   it("should render a you're in toast if it is a new user and in saas mode", async () => {
-    const getConfigSpy = vi.spyOn(OpenHands, "getConfig");
-    const getSettingsSpy = vi.spyOn(OpenHands, "getSettings");
+    const getConfigSpy = vi.spyOn(OptionService, "getConfig");
+    const getSettingsSpy = vi.spyOn(SettingsService, "getSettings");
     const displaySuccessToastSpy = vi.spyOn(
       ToastHandlers,
       "displaySuccessToast",
@@ -202,6 +266,10 @@ describe("frontend/routes/_oh", () => {
         ENABLE_JIRA_DC: false,
         ENABLE_LINEAR: false,
       },
+    });
+    useConfigMock.mockReturnValue({
+      data: { APP_MODE: "saas", FEATURE_FLAGS: DEFAULT_FEATURE_FLAGS },
+      isLoading: false,
     });
 
     getSettingsSpy.mockRejectedValue(createAxiosNotFoundErrorObject());

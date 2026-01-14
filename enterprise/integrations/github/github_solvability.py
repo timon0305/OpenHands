@@ -1,7 +1,7 @@
 import asyncio
 import time
 
-from github import Github
+from github import Auth, Github
 from integrations.github.github_view import (
     GithubInlinePRComment,
     GithubIssueComment,
@@ -13,7 +13,7 @@ from integrations.solvability.models.report import SolvabilityReport
 from integrations.solvability.models.summary import SolvabilitySummary
 from integrations.utils import ENABLE_SOLVABILITY_ANALYSIS
 from pydantic import ValidationError
-from server.auth.token_manager import get_config
+from server.config import get_config
 from storage.database import session_maker
 from storage.saas_settings_store import SaasSettingsStore
 
@@ -47,7 +47,7 @@ def fetch_github_issue_context(
     context_parts.append(f'Title: {github_view.title}')
     context_parts.append(f'Description:\n{github_view.description}')
 
-    with Github(user_token) as github_client:
+    with Github(auth=Auth.Token(user_token)) as github_client:
         repo = github_client.get_repo(github_view.full_repo_name)
         issue = repo.get_issue(github_view.issue_number)
         if issue.labels:

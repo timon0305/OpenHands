@@ -17,11 +17,23 @@ from server.auth.constants import (
     GITHUB_APP_PRIVATE_KEY,
     GITHUB_APP_WEBHOOK_SECRET,
     GITLAB_APP_CLIENT_ID,
+    RECAPTCHA_SITE_KEY,
 )
 
+from openhands.core.config.utils import load_openhands_config
 from openhands.integrations.service_types import ProviderType
 from openhands.server.config.server_config import ServerConfig
 from openhands.server.types import AppMode
+
+# Create a function to get config to avoid circular imports
+_config = None
+
+
+def get_config():
+    global _config
+    if _config is None:
+        _config = load_openhands_config()
+    return _config
 
 
 def sign_token(payload: dict[str, object], jwt_secret: str, algorithm='HS256') -> str:
@@ -175,5 +187,8 @@ class SaaSServerConfig(ServerConfig):
 
         if self.auth_url:
             config['AUTH_URL'] = self.auth_url
+
+        if RECAPTCHA_SITE_KEY:
+            config['RECAPTCHA_SITE_KEY'] = RECAPTCHA_SITE_KEY
 
         return config

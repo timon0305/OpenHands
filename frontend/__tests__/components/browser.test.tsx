@@ -13,7 +13,8 @@ vi.mock("react-router", async () => {
 
 vi.mock("#/context/conversation-context", () => ({
   useConversation: () => ({ conversationId: "test-conversation-id" }),
-  ConversationProvider: ({ children }: { children: React.ReactNode }) => children,
+  ConversationProvider: ({ children }: { children: React.ReactNode }) =>
+    children,
 }));
 
 vi.mock("react-i18next", async () => {
@@ -29,54 +30,33 @@ vi.mock("react-i18next", async () => {
   };
 });
 
-// Mock redux
-const mockDispatch = vi.fn();
-let mockBrowserState = {
-  url: "https://example.com",
-  screenshotSrc: "",
-};
-
-vi.mock("react-redux", async () => {
-  const actual = await vi.importActual("react-redux");
-  return {
-    ...actual,
-    useDispatch: () => mockDispatch,
-    useSelector: () => mockBrowserState,
-  };
-});
-
-// Import the component after all mocks are set up
 import { BrowserPanel } from "#/components/features/browser/browser";
+import { useBrowserStore } from "#/stores/browser-store";
 
 describe("Browser", () => {
   afterEach(() => {
     vi.clearAllMocks();
-    // Reset the mock state
-    mockBrowserState = {
-      url: "https://example.com",
-      screenshotSrc: "",
-    };
   });
 
   it("renders a message if no screenshotSrc is provided", () => {
-    // Set the mock state for this test
-    mockBrowserState = {
+    useBrowserStore.setState({
       url: "https://example.com",
       screenshotSrc: "",
-    };
+      reset: vi.fn(),
+    });
 
     render(<BrowserPanel />);
 
-    // i18n empty message key
     expect(screen.getByText("BROWSER$NO_PAGE_LOADED")).toBeInTheDocument();
   });
 
   it("renders the url and a screenshot", () => {
-    // Set the mock state for this test
-    mockBrowserState = {
+    useBrowserStore.setState({
       url: "https://example.com",
-      screenshotSrc: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN0uGvyHwAFCAJS091fQwAAAABJRU5ErkJggg==",
-    };
+      screenshotSrc:
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN0uGvyHwAFCAJS091fQwAAAABJRU5ErkJggg==",
+      reset: vi.fn(),
+    });
 
     render(<BrowserPanel />);
 

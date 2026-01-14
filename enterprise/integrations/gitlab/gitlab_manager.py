@@ -15,6 +15,7 @@ from integrations.utils import (
     CONVERSATION_URL,
     HOST_URL,
     OPENHANDS_RESOLVER_TEMPLATES_DIR,
+    get_session_expired_message,
 )
 from jinja2 import Environment, FileSystemLoader
 from pydantic import SecretStr
@@ -24,8 +25,12 @@ from server.utils.conversation_callback_utils import register_callback_processor
 from openhands.core.logger import openhands_logger as logger
 from openhands.integrations.gitlab.gitlab_service import GitLabServiceImpl
 from openhands.integrations.provider import ProviderToken, ProviderType
-from openhands.server.types import LLMAuthenticationError, MissingSettingsError
-from openhands.storage.data_models.user_secrets import UserSecrets
+from openhands.server.types import (
+    LLMAuthenticationError,
+    MissingSettingsError,
+    SessionExpiredError,
+)
+from openhands.storage.data_models.secrets import Secrets
 
 
 class GitlabManager(Manager):
@@ -62,7 +67,13 @@ class GitlabManager(Manager):
             logger.warning(f'Got invalid keyloak user id for GitLab User {user_id}')
             return False
 
-        gitlab_service = GitLabServiceImpl(external_auth_id=keycloak_user_id)
+        # Importing here prevents circular import
+        from integrations.gitlab.gitlab_service import SaaSGitLabService
+
+        gitlab_service: SaaSGitLabService = GitLabServiceImpl(
+            external_auth_id=keycloak_user_id
+        )
+
         return await gitlab_service.user_has_write_access(project_id)
 
     async def receive_message(self, message: Message):
@@ -119,7 +130,13 @@ class GitlabManager(Manager):
             gitlab_view: The GitLab view object containing issue/PR/comment info
         """
         keycloak_user_id = gitlab_view.user_info.keycloak_user_id
-        gitlab_service = GitLabServiceImpl(external_auth_id=keycloak_user_id)
+
+        # Importing here prevents circular import
+        from integrations.gitlab.gitlab_service import SaaSGitLabService
+
+        gitlab_service: SaaSGitLabService = GitLabServiceImpl(
+            external_auth_id=keycloak_user_id
+        )
 
         outgoing_message = message.message
 
@@ -186,7 +203,7 @@ class GitlabManager(Manager):
                     f'[GitLab] Creating new conversation for user {user_info.username}'
                 )
 
-                secret_store = UserSecrets(
+                secret_store = Secrets(
                     provider_tokens=MappingProxyType(
                         {
                             ProviderType.GITLAB: ProviderToken(
@@ -236,6 +253,13 @@ class GitlabManager(Manager):
                 )
 
                 msg_info = f'@{user_info.username} please set a valid LLM API key in [OpenHands Cloud]({HOST_URL}) before starting a job.'
+
+            except SessionExpiredError as e:
+                logger.warning(
+                    f'[GitLab] Session expired for user {user_info.username}: {str(e)}'
+                )
+
+                msg_info = get_session_expired_message(user_info.username)
 
             # Send the acknowledgment message
             msg = self.create_outgoing_message(msg_info)

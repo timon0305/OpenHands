@@ -6,44 +6,12 @@
  */
 
 import { HydratedRouter } from "react-router/dom";
-import React, { startTransition, StrictMode } from "react";
+import { startTransition, StrictMode } from "react";
 import { hydrateRoot } from "react-dom/client";
-import { Provider } from "react-redux";
-import posthog from "posthog-js";
 import "./i18n";
 import { QueryClientProvider } from "@tanstack/react-query";
-import store from "./store";
-import OpenHands from "./api/open-hands";
-import { displayErrorToast } from "./utils/custom-toast-handlers";
 import { queryClient } from "./query-client-config";
-
-function PosthogInit() {
-  const [posthogClientKey, setPosthogClientKey] = React.useState<string | null>(
-    null,
-  );
-
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const config = await OpenHands.getConfig();
-        setPosthogClientKey(config.POSTHOG_CLIENT_KEY);
-      } catch (error) {
-        displayErrorToast("Error fetching PostHog client key");
-      }
-    })();
-  }, []);
-
-  React.useEffect(() => {
-    if (posthogClientKey) {
-      posthog.init(posthogClientKey, {
-        api_host: "https://us.i.posthog.com",
-        person_profiles: "identified_only",
-      });
-    }
-  }, [posthogClientKey]);
-
-  return null;
-}
+import { PostHogWrapper } from "./components/providers/posthog-wrapper";
 
 async function prepareApp() {
   if (
@@ -63,13 +31,11 @@ prepareApp().then(() =>
     hydrateRoot(
       document,
       <StrictMode>
-        <Provider store={store}>
-          <QueryClientProvider client={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <PostHogWrapper>
             <HydratedRouter />
-            <PosthogInit />
-          </QueryClientProvider>
-        </Provider>
-        <div id="modal-portal-exit" />
+          </PostHogWrapper>
+        </QueryClientProvider>
       </StrictMode>,
     );
   }),

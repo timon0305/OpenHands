@@ -134,12 +134,12 @@ async def _process_batch_operations_background(
             )
         except Exception as e:
             logger.error(
-                'error_processing_batch_operation',
+                f'error_processing_batch_operation: {type(e).__name__}: {e}',
                 extra={
                     'path': batch_op.path,
                     'method': str(batch_op.method),
-                    'error': str(e),
                 },
+                exc_info=True,
             )
 
 
@@ -234,7 +234,7 @@ def _get_user_id(conversation_id: str) -> str:
         return conversation_metadata.user_id
 
 
-async def _get_session_api_key(user_id: str, conversation_id: str) -> str:
+async def _get_session_api_key(user_id: str, conversation_id: str) -> str | None:
     agent_loop_info = await conversation_manager.get_agent_loop_info(
         user_id, filter_to_sids={conversation_id}
     )

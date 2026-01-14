@@ -8,7 +8,6 @@ import socketio
 from server.logger import logger
 from server.utils.conversation_callback_utils import invoke_conversation_callbacks
 from storage.database import session_maker
-from storage.saas_settings_store import SaasSettingsStore
 from storage.stored_conversation_metadata import StoredConversationMetadata
 
 from openhands.core.config import LLMConfig
@@ -21,6 +20,7 @@ from openhands.events.event_store_abc import EventStoreABC
 from openhands.events.observation import AgentStateChangedObservation
 from openhands.events.stream import EventStreamSubscriber
 from openhands.llm.llm_registry import LLMRegistry
+from openhands.runtime.runtime_status import RuntimeStatus
 from openhands.server.config.server_config import ServerConfig
 from openhands.server.conversation_manager.conversation_manager import (
     ConversationManager,
@@ -686,6 +686,7 @@ class ClusteredConversationManager(StandaloneConversationManager):
                         url=self._get_conversation_url(conversation_id),
                         session_api_key=None,
                         event_store=EventStore(conversation_id, self.file_store, uid),
+                        runtime_status=RuntimeStatus.READY,
                     )
                 )
         return results
@@ -741,6 +742,8 @@ class ClusteredConversationManager(StandaloneConversationManager):
             return
 
         # Restart the agent loop
+        from storage.saas_settings_store import SaasSettingsStore
+
         config = load_openhands_config()
         settings_store = await SaasSettingsStore.get_instance(config, user_id)
         settings = await settings_store.load()

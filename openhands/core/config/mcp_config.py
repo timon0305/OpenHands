@@ -1,3 +1,10 @@
+# IMPORTANT: LEGACY V0 CODE
+# This file is part of the legacy (V0) implementation of OpenHands and will be removed soon as we complete the migration to V1.
+# OpenHands V1 uses the Software Agent SDK for the agentic core and runs a new application server. Please refer to:
+#   - V1 agentic core (SDK): https://github.com/OpenHands/software-agent-sdk
+#   - V1 application server (in this repo): openhands/app_server/
+# Unless you are working on deprecation, please avoid extending this legacy file and consult the V1 codepaths above.
+# Tag: Legacy-V0
 from __future__ import annotations
 
 import os
@@ -189,14 +196,34 @@ class MCPStdioServerConfig(BaseModel):
 
 
 class MCPSHTTPServerConfig(BaseModel):
+    """Configuration for a MCP server that uses SHTTP.
+
+    Attributes:
+        url: The server URL
+        api_key: Optional API key for authentication
+        timeout: Timeout in seconds for tool calls (default: 60s)
+    """
+
     url: str
     api_key: str | None = None
+    timeout: int | None = 60
 
     @field_validator('url', mode='before')
     @classmethod
     def validate_url(cls, v: str) -> str:
         """Validate URL format for MCP servers."""
         return _validate_mcp_url(v)
+
+    @field_validator('timeout')
+    @classmethod
+    def validate_timeout(cls, v: int | None) -> int | None:
+        """Validate timeout value for MCP tool calls."""
+        if v is not None:
+            if v <= 0:
+                raise ValueError('Timeout must be positive')
+            if v > 3600:  # 1 hour max
+                raise ValueError('Timeout cannot exceed 3600 seconds')
+        return v
 
 
 class MCPConfig(BaseModel):

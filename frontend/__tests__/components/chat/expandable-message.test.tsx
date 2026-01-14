@@ -3,7 +3,7 @@ import { screen } from "@testing-library/react";
 import { renderWithProviders } from "test-utils";
 import { createRoutesStub } from "react-router";
 import { ExpandableMessage } from "#/components/features/chat/expandable-message";
-import OpenHands from "#/api/open-hands";
+import OptionService from "#/api/option-service/option-service.api";
 
 vi.mock("react-i18next", async () => {
   const actual = await vi.importActual("react-i18next");
@@ -61,7 +61,7 @@ describe("ExpandableMessage", () => {
     expect(icon).toHaveClass("fill-success");
   });
 
-  it("should render with error icon for failed action messages", () => {
+  it("should render with no icon for failed action messages", () => {
     renderWithProviders(
       <ExpandableMessage
         id="OBSERVATION_MESSAGE$RUN"
@@ -75,8 +75,7 @@ describe("ExpandableMessage", () => {
       "div.flex.gap-2.items-center.justify-start",
     );
     expect(container).toHaveClass("border-neutral-300");
-    const icon = screen.getByTestId("status-icon");
-    expect(icon).toHaveClass("fill-danger");
+    expect(screen.queryByTestId("status-icon")).not.toBeInTheDocument();
   });
 
   it("should render with neutral border and no icon for action messages without success prop", () => {
@@ -113,7 +112,7 @@ describe("ExpandableMessage", () => {
   });
 
   it("should render the out of credits message when the user is out of credits", async () => {
-    const getConfigSpy = vi.spyOn(OpenHands, "getConfig");
+    const getConfigSpy = vi.spyOn(OptionService, "getConfig");
     // @ts-expect-error - We only care about the APP_MODE and FEATURE_FLAGS fields
     getConfigSpy.mockResolvedValue({
       APP_MODE: "saas",

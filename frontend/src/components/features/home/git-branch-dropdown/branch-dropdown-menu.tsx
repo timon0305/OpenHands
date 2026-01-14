@@ -47,7 +47,6 @@ export function BranchDropdownMenu({
       key={branch.name}
       item={branch}
       index={index}
-      isHighlighted={currentHighlightedIndex === index}
       isSelected={currentSelectedItem?.name === branch.name}
       getItemProps={currentGetItemProps}
       getDisplayText={(branchItem) => branchItem.name}
@@ -80,6 +79,7 @@ export function BranchDropdownMenu({
         menuRef={menuRef}
         renderItem={renderItem}
         renderEmptyState={renderEmptyState}
+        itemKey={(branch) => branch.name}
       />
     </div>
   );

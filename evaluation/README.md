@@ -1,19 +1,24 @@
 # Evaluation
 
+> [!WARNING]
+> **This directory is deprecated.** Our new benchmarks are located at [OpenHands/benchmarks](https://github.com/OpenHands/benchmarks).
+>
+> If you have already implemented a benchmark in this directory and would like to contribute it, we are happy to have the contribution. However, if you are starting anew, please use the new location.
+
 This folder contains code and resources to run experiments and evaluations.
 
 ## For Benchmark Users
 
 ### Setup
 
-Before starting evaluation, follow the instructions [here](https://github.com/All-Hands-AI/OpenHands/blob/main/Development.md) to setup your local development environment and LLM.
+Before starting evaluation, follow the instructions [here](https://github.com/OpenHands/OpenHands/blob/main/Development.md) to setup your local development environment and LLM.
 
 Once you are done with setup, you can follow the benchmark-specific instructions in each subdirectory of the [evaluation directory](#supported-benchmarks).
 Generally these will involve running `run_infer.py` to perform inference with the agents.
 
 ### Implementing and Evaluating an Agent
 
-To add an agent to OpenHands, you will need to implement it in the [agenthub directory](https://github.com/All-Hands-AI/OpenHands/tree/main/openhands/agenthub). There is a README there with more information.
+To add an agent to OpenHands, you will need to implement it in the [agenthub directory](https://github.com/OpenHands/OpenHands/tree/main/openhands/agenthub). There is a README there with more information.
 
 To evaluate an agent, you can provide the agent's name to the `run_infer.py` program.
 
@@ -44,7 +49,7 @@ temperature = 0.0
 
 ### Configuring Condensers for Evaluation
 
-For benchmarks that support condenser configuration (like SWE-Bench), you can define multiple condenser configurations in your `config.toml` file. A condenser is responsible for managing conversation history to maintain context while staying within token limits - you can learn more about how it works [here](https://www.all-hands.dev/blog/openhands-context-condensensation-for-more-efficient-ai-agents):
+For benchmarks that support condenser configuration (like SWE-Bench), you can define multiple condenser configurations in your `config.toml` file. A condenser is responsible for managing conversation history to maintain context while staying within token limits - you can learn more about how it works [here](https://www.openhands.dev/blog/openhands-context-condensensation-for-more-efficient-ai-agents):
 
 ```toml
 # LLM-based summarizing condenser for evaluation
@@ -138,7 +143,7 @@ You can start your own fork of [our huggingface evaluation outputs](https://hugg
 
 ## For Benchmark Developers
 
-To learn more about how to integrate your benchmark into OpenHands, check out [tutorial here](https://docs.all-hands.dev/usage/how-to/evaluation-harness). Briefly,
+To learn more about how to integrate your benchmark into OpenHands, check out [tutorial here](https://docs.openhands.dev/usage/how-to/evaluation-harness). Briefly,
 
 - Each subfolder contains a specific benchmark or experiment. For example, [`evaluation/benchmarks/swe_bench`](./benchmarks/swe_bench) should contain
 all the preprocessing/evaluation/analysis scripts.

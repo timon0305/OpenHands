@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSettings } from "#/hooks/query/use-settings";
-import OpenHands from "#/api/open-hands";
+import SettingsService from "#/api/settings-service/settings-service.api";
 import { MCPSSEServer, MCPStdioServer, MCPSHTTPServer } from "#/types/settings";
 
 type MCPServerType = "sse" | "stdio" | "shttp";
@@ -10,6 +10,7 @@ interface MCPServerConfig {
   name?: string;
   url?: string;
   api_key?: string;
+  timeout?: number;
   command?: string;
   args?: string[];
   env?: Record<string, string>;
@@ -23,7 +24,7 @@ export function useAddMcpServer() {
     mutationFn: async (server: MCPServerConfig): Promise<void> => {
       if (!settings) return;
 
-      const currentConfig = settings.MCP_CONFIG || {
+      const currentConfig = settings.mcp_config || {
         sse_servers: [],
         stdio_servers: [],
         shttp_servers: [],
@@ -49,15 +50,17 @@ export function useAddMcpServer() {
         const shttpServer: MCPSHTTPServer = {
           url: server.url!,
           ...(server.api_key && { api_key: server.api_key }),
+          ...(server.timeout !== undefined && { timeout: server.timeout }),
         };
         newConfig.shttp_servers.push(shttpServer);
       }
 
       const apiSettings = {
         mcp_config: newConfig,
+        v1_enabled: settings.v1_enabled,
       };
 
-      await OpenHands.saveSettings(apiSettings);
+      await SettingsService.saveSettings(apiSettings);
     },
     onSuccess: () => {
       // Invalidate the settings query to trigger a refetch

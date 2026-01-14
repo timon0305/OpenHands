@@ -1,27 +1,15 @@
 import { useTranslation } from "react-i18next";
 import { Spinner } from "@heroui/react";
-import { useSelector } from "react-redux";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
-import { code } from "../markdown/code";
-import { ul, ol } from "../markdown/list";
-import { paragraph } from "../markdown/paragraph";
-import { anchor } from "../markdown/anchor";
-import { RootState } from "#/store";
+import { useMicroagentManagementStore } from "#/stores/microagent-management-store";
 import { useRepositoryMicroagentContent } from "#/hooks/query/use-repository-microagent-content";
 import { I18nKey } from "#/i18n/declaration";
 import { extractRepositoryInfo } from "#/utils/utils";
+import { MarkdownRenderer } from "../markdown/markdown-renderer";
 
 export function MicroagentManagementViewMicroagentContent() {
   const { t } = useTranslation();
-  const { selectedMicroagentItem } = useSelector(
-    (state: RootState) => state.microagentManagement,
-  );
-
-  const { selectedRepository } = useSelector(
-    (state: RootState) => state.microagentManagement,
-  );
+  const { selectedMicroagentItem, selectedRepository } =
+    useMicroagentManagementStore();
 
   const { microagent } = selectedMicroagentItem ?? {};
 
@@ -55,18 +43,9 @@ export function MicroagentManagementViewMicroagentContent() {
         </div>
       )}
       {microagentData && !isLoading && !error && (
-        <Markdown
-          components={{
-            code,
-            ul,
-            ol,
-            a: anchor,
-            p: paragraph,
-          }}
-          remarkPlugins={[remarkGfm, remarkBreaks]}
-        >
+        <MarkdownRenderer includeStandard>
           {microagentData.content}
-        </Markdown>
+        </MarkdownRenderer>
       )}
     </div>
   );

@@ -16,6 +16,7 @@ from integrations.utils import (
     HOST_URL,
     OPENHANDS_RESOLVER_TEMPLATES_DIR,
     filter_potential_repos_by_user_msg,
+    get_session_expired_message,
 )
 from jinja2 import Environment, FileSystemLoader
 from server.auth.saas_user_auth import get_user_auth_from_keycloak_id
@@ -29,8 +30,13 @@ from openhands.core.logger import openhands_logger as logger
 from openhands.integrations.provider import ProviderHandler
 from openhands.integrations.service_types import Repository
 from openhands.server.shared import server_config
-from openhands.server.types import LLMAuthenticationError, MissingSettingsError
+from openhands.server.types import (
+    LLMAuthenticationError,
+    MissingSettingsError,
+    SessionExpiredError,
+)
 from openhands.server.user_auth.user_auth import UserAuth
+from openhands.utils.http_session import httpx_verify_option
 
 
 class LinearManager(Manager):
@@ -386,6 +392,10 @@ class LinearManager(Manager):
             logger.warning(f'[Linear] LLM authentication error: {str(e)}')
             msg_info = f'Please set a valid LLM API key in [OpenHands Cloud]({HOST_URL}) before starting a job.'
 
+        except SessionExpiredError as e:
+            logger.warning(f'[Linear] Session expired: {str(e)}')
+            msg_info = get_session_expired_message()
+
         except Exception as e:
             logger.error(
                 f'[Linear] Unexpected error starting job: {str(e)}', exc_info=True
@@ -408,7 +418,7 @@ class LinearManager(Manager):
     async def _query_api(self, query: str, variables: Dict, api_key: str) -> Dict:
         """Query Linear GraphQL API."""
         headers = {'Authorization': api_key}
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=httpx_verify_option()) as client:
             response = await client.post(
                 self.api_url,
                 headers=headers,

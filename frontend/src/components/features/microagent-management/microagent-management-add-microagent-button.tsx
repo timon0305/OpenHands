@@ -1,11 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { useDispatch, useSelector } from "react-redux";
 import { I18nKey } from "#/i18n/declaration";
-import {
-  setAddMicroagentModalVisible,
-  setSelectedRepository,
-} from "#/state/microagent-management-slice";
-import { RootState } from "#/store";
+import { useMicroagentManagementStore } from "#/stores/microagent-management-store";
 import { GitRepository } from "#/types/git";
 
 interface MicroagentManagementAddMicroagentButtonProps {
@@ -17,28 +12,38 @@ export function MicroagentManagementAddMicroagentButton({
 }: MicroagentManagementAddMicroagentButtonProps) {
   const { t } = useTranslation();
 
-  const { addMicroagentModalVisible } = useSelector(
-    (state: RootState) => state.microagentManagement,
-  );
+  const {
+    addMicroagentModalVisible,
+    setAddMicroagentModalVisible,
+    setSelectedRepository,
+  } = useMicroagentManagementStore();
 
-  const dispatch = useDispatch();
-
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleClick = (e: React.MouseEvent<HTMLSpanElement>) => {
     e.stopPropagation();
-    dispatch(setAddMicroagentModalVisible(!addMicroagentModalVisible));
-    dispatch(setSelectedRepository(repository));
+    e.preventDefault();
+    setAddMicroagentModalVisible(!addMicroagentModalVisible);
+    setSelectedRepository(repository);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLSpanElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.stopPropagation();
+      e.preventDefault();
+      setAddMicroagentModalVisible(!addMicroagentModalVisible);
+      setSelectedRepository(repository);
+    }
   };
 
   return (
-    <button
-      type="button"
+    <span
+      role="button"
+      tabIndex={0}
       onClick={handleClick}
-      className="translate-y-[-1px]"
+      onKeyDown={handleKeyDown}
+      className="translate-y-[-1px] text-sm font-normal leading-5 text-[#8480FF] cursor-pointer hover:text-[#6C63FF] transition-colors duration-200"
       data-testid="add-microagent-button"
     >
-      <span className="text-sm font-normal leading-5 text-[#8480FF] cursor-pointer hover:text-[#6C63FF] transition-colors duration-200">
-        {t(I18nKey.COMMON$ADD_MICROAGENT)}
-      </span>
-    </button>
+      {t(I18nKey.COMMON$ADD_MICROAGENT)}
+    </span>
   );
 }

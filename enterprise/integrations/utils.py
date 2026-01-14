@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from jinja2 import Environment, FileSystemLoader
 from server.constants import WEB_HOST
+from storage.org_store import OrgStore
 
 from openhands.core.logger import openhands_logger as logger
 from openhands.core.schema.agent import AgentState
@@ -15,10 +16,12 @@ from openhands.events.action import (
     AgentFinishAction,
     MessageAction,
 )
+from openhands.events.event_filter import EventFilter
 from openhands.events.event_store_abc import EventStoreABC
 from openhands.events.observation.agent import AgentStateChangedObservation
 from openhands.integrations.service_types import Repository
 from openhands.storage.data_models.conversation_status import ConversationStatus
+from openhands.utils.async_utils import call_sync_from_async
 
 if TYPE_CHECKING:
     from openhands.server.conversation_manager.conversation_manager import (
@@ -30,7 +33,7 @@ if TYPE_CHECKING:
 HOST = WEB_HOST
 # ---- DO NOT REMOVE ----
 
-HOST_URL = f'https://{HOST}'
+HOST_URL = f'https://{HOST}' if 'localhost' not in HOST else f'http://{HOST}'
 GITHUB_WEBHOOK_URL = f'{HOST_URL}/integration/github/events'
 GITLAB_WEBHOOK_URL = f'{HOST_URL}/integration/gitlab/events'
 conversation_prefix = 'conversations/{}'
@@ -40,6 +43,27 @@ CONVERSATION_URL = f'{HOST_URL}/{conversation_prefix}'
 ENABLE_PROACTIVE_CONVERSATION_STARTERS = (
     os.getenv('ENABLE_PROACTIVE_CONVERSATION_STARTERS', 'false').lower() == 'true'
 )
+
+
+def get_session_expired_message(username: str | None = None) -> str:
+    """Get a user-friendly session expired message.
+
+    Used by integrations to notify users when their Keycloak offline session
+    has expired.
+
+    Args:
+        username: Optional username to mention in the message. If provided,
+                  the message will include @username prefix (used by Git providers
+                  like GitHub, GitLab, Slack). If None, returns a generic message
+                  (used by Jira, Jira DC, Linear).
+
+    Returns:
+        A formatted session expired message
+    """
+    if username:
+        return f'@{username} your session has expired. Please login again at [OpenHands Cloud]({HOST_URL}) and try again.'
+    return f'Your session has expired. Please login again at [OpenHands Cloud]({HOST_URL}) and try again.'
+
 
 # Toggle for solvability report feature
 ENABLE_SOLVABILITY_ANALYSIS = (
@@ -51,8 +75,14 @@ ENABLE_V1_GITHUB_RESOLVER = (
     os.getenv('ENABLE_V1_GITHUB_RESOLVER', 'false').lower() == 'true'
 )
 
+ENABLE_V1_SLACK_RESOLVER = (
+    os.getenv('ENABLE_V1_SLACK_RESOLVER', 'false').lower() == 'true'
+)
 
-OPENHANDS_RESOLVER_TEMPLATES_DIR = 'openhands/integrations/templates/resolver/'
+OPENHANDS_RESOLVER_TEMPLATES_DIR = (
+    os.getenv('OPENHANDS_RESOLVER_TEMPLATES_DIR')
+    or 'openhands/integrations/templates/resolver/'
+)
 jinja_env = Environment(loader=FileSystemLoader(OPENHANDS_RESOLVER_TEMPLATES_DIR))
 
 
@@ -78,6 +108,28 @@ def get_summary_instruction():
     summary_instruction_template = jinja_env.get_template('summary_prompt.j2')
     summary_instruction = summary_instruction_template.render()
     return summary_instruction
+
+
+async def get_user_v1_enabled_setting(user_id: str | None) -> bool:
+    """Get the user's V1 conversation API setting.
+
+    Args:
+        user_id: The keycloak user ID
+
+    Returns:
+        True if V1 conversations are enabled for this user, False otherwise
+    """
+    if not user_id:
+        return False
+
+    org = await call_sync_from_async(
+        OrgStore.get_current_org_from_keycloak_user_id, user_id
+    )
+
+    if not org or org.v1_enabled is None:
+        return False
+
+    return org.v1_enabled
 
 
 def has_exact_mention(text: str, mention: str) -> bool:
@@ -198,18 +250,35 @@ def get_summary_for_agent_state(
 def get_final_agent_observation(
     event_store: EventStoreABC,
 ) -> list[AgentStateChangedObservation]:
-    return event_store.get_matching_events(
-        source=EventSource.ENVIRONMENT,
-        event_types=(AgentStateChangedObservation,),
-        limit=1,
-        reverse=True,
+    events = list(
+        event_store.search_events(
+            filter=EventFilter(
+                source=EventSource.ENVIRONMENT,
+                include_types=(AgentStateChangedObservation,),
+            ),
+            limit=1,
+            reverse=True,
+        )
     )
+    result = [e for e in events if isinstance(e, AgentStateChangedObservation)]
+    assert len(result) == len(events)
+    return result
 
 
 def get_last_user_msg(event_store: EventStoreABC) -> list[MessageAction]:
-    return event_store.get_matching_events(
-        source=EventSource.USER, event_types=(MessageAction,), limit=1, reverse='true'
+    events = list(
+        event_store.search_events(
+            filter=EventFilter(
+                source=EventSource.USER,
+                include_types=(MessageAction,),
+            ),
+            limit=1,
+            reverse=True,
+        )
     )
+    result = [e for e in events if isinstance(e, MessageAction)]
+    assert len(result) == len(events)
+    return result
 
 
 def extract_summary_from_event_store(
@@ -221,18 +290,22 @@ def extract_summary_from_event_store(
     conversation_link = CONVERSATION_URL.format(conversation_id)
     summary_instruction = get_summary_instruction()
 
-    instruction_event: list[MessageAction] = event_store.get_matching_events(
-        query=json.dumps(summary_instruction),
-        source=EventSource.USER,
-        event_types=(MessageAction,),
-        limit=1,
-        reverse=True,
+    instruction_events = list(
+        event_store.search_events(
+            filter=EventFilter(
+                query=json.dumps(summary_instruction),
+                source=EventSource.USER,
+                include_types=(MessageAction,),
+            ),
+            limit=1,
+            reverse=True,
+        )
     )
 
     final_agent_observation = get_final_agent_observation(event_store)
 
     # Find summary instruction event ID
-    if len(instruction_event) == 0:
+    if not instruction_events:
         logger.warning(
             'no_instruction_event_found', extra={'conversation_id': conversation_id}
         )
@@ -240,19 +313,19 @@ def extract_summary_from_event_store(
             final_agent_observation, conversation_link
         )  # Agent did not receive summary instruction
 
-    event_id: int = instruction_event[0].id
-
-    agent_messages: list[MessageAction | AgentFinishAction] = (
-        event_store.get_matching_events(
-            start_id=event_id,
-            source=EventSource.AGENT,
-            event_types=(MessageAction, AgentFinishAction),
-            reverse=True,
+    summary_events = list(
+        event_store.search_events(
+            filter=EventFilter(
+                source=EventSource.AGENT,
+                include_types=(MessageAction, AgentFinishAction),
+            ),
             limit=1,
+            reverse=True,
+            start_id=instruction_events[0].id,
         )
     )
 
-    if len(agent_messages) == 0:
+    if not summary_events:
         logger.warning(
             'no_agent_messages_found', extra={'conversation_id': conversation_id}
         )
@@ -260,10 +333,11 @@ def extract_summary_from_event_store(
             final_agent_observation, conversation_link
         )  # Agent failed to generate summary
 
-    summary_event: MessageAction | AgentFinishAction = agent_messages[0]
+    summary_event = summary_events[0]
     if isinstance(summary_event, MessageAction):
         return summary_event.content
 
+    assert isinstance(summary_event, AgentFinishAction)
     return summary_event.final_thought
 
 

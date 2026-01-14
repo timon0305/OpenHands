@@ -6,7 +6,6 @@ from storage.api_key_store import ApiKeyStore
 from storage.lite_llm_manager import LiteLlmManager
 from storage.org_member import OrgMember
 from storage.org_member_store import OrgMemberStore
-from storage.org_store import OrgStore
 from storage.user_store import UserStore
 
 from openhands.core.logger import openhands_logger as logger
@@ -33,15 +32,7 @@ async def get_byor_key_from_db(user_id: str) -> str | None:
             return None
         if current_org_member.llm_api_key_for_byor:
             return current_org_member.llm_api_key_for_byor.get_secret_value()
-
-        org = OrgStore.get_org_by_id(current_org_id)
-        if not org:
-            return None
-        return (
-            org.default_llm_api_key_for_byor.get_secret_value()
-            if org.default_llm_api_key_for_byor
-            else None
-        )
+        return None
 
     return await call_sync_from_async(_get_byor_key)
 
@@ -72,8 +63,15 @@ async def generate_byor_key(user_id: str) -> str | None:
     """Generate a new BYOR key for a user."""
 
     try:
+        user = await call_sync_from_async(UserStore.get_user_by_id, user_id)
+        current_org_id = str(user.current_org_id)
+        if not user:
+            return None
         key = await LiteLlmManager.generate_key(
-            user_id, user_id, f'BYOR Key - user {user_id}', {'type': 'byor'}
+            user_id,
+            current_org_id,
+            f'BYOR Key - user {user_id}, org {current_org_id}',
+            {'type': 'byor'},
         )
 
         if key:

@@ -37,7 +37,7 @@ async def get_trajectory(
         JSONResponse: A JSON response containing the trajectory as a list of
         events.
 
-        For V1 conversations, use the V1 endpoint ``GET /api/v1/events/search?conversation_id__eq={conversation_id}``
+        For V1 conversations, use the V1 endpoint ``GET /api/v1/conversations/{conversation_id}/events/search``
         to retrieve events with enhanced filtering and pagination capabilities.
     """
     try:

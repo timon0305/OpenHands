@@ -30,6 +30,50 @@ GLOBAL_SKILLS_DIR = os.path.join(
 WORK_HOSTS_SKILL = """The user has access to the following hosts for accessing a web application,
 each of which has a corresponding port:"""
 
+WORK_HOSTS_SKILL_FOOTER = """
+**IMPORTANT: Enable CORS on your web server**
+
+When starting a web server, you MUST enable CORS (Cross-Origin Resource Sharing) so the App tab can detect and display your application. Without CORS headers, the App tab will show an empty state even if the server is running.
+
+Examples for common frameworks:
+
+**Express.js:**
+```javascript
+const cors = require('cors');
+app.use(cors());
+```
+
+**Flask (Python):**
+```python
+from flask import Flask
+from flask_cors import CORS
+app = Flask(__name__)
+CORS(app)
+```
+
+**FastAPI (Python):**
+```python
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+```
+
+**Vite (dev server):**
+```javascript
+// vite.config.js
+export default { server: { cors: true } }
+```
+
+**Simple Python HTTP server** (use this instead of `python -m http.server`):
+```python
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+class CORSHandler(SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        super().end_headers()
+HTTPServer(('', PORT), CORSHandler).serve_forever()
+```
+"""
+
 
 def _find_and_load_global_skill_files(skill_dir: Path) -> list[Skill]:
     """Find and load all .md files from the global skills directory.
@@ -73,6 +117,7 @@ def load_sandbox_skills(sandbox: SandboxInfo) -> list[Skill]:
     content_list = [WORK_HOSTS_SKILL]
     for url in urls:
         content_list.append(f'* {url.url} (port {url.port})')
+    content_list.append(WORK_HOSTS_SKILL_FOOTER)
     content = '\n'.join(content_list)
     return [Skill(name='work_hosts', content=content, trigger=None)]
 

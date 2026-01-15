@@ -305,7 +305,7 @@ class AddMessageRequest(BaseModel):
     message: str
 
 
-@app.post('/message')
+@app.post('/message', deprecated=True)
 async def add_message(
     data: AddMessageRequest,
     conversation: ServerConversation = Depends(get_conversation),
@@ -321,6 +321,9 @@ async def add_message(
 
     Returns:
         JSONResponse: A JSON response indicating the success of the operation
+
+        For V1 conversations, messages are managed through the sandbox webhook system.
+        Use ``POST /api/v1/webhooks/events/{conversation_id}`` to send events to V1 conversations.
     """
     try:
         # Create a MessageAction from the provided message text

@@ -218,9 +218,7 @@ class SaasNestedConversationManager(ConversationManager):
         if status is ConversationStatus.STOPPED:
             # Atomically set the key only if it doesn't exist (SETNX)
             # This prevents race conditions where multiple callers try to start the agent loop
-            was_set = await redis.set(
-                key, 1, ex=_REDIS_ENTRY_TIMEOUT_SECONDS, nx=True
-            )
+            was_set = await redis.set(key, 1, ex=_REDIS_ENTRY_TIMEOUT_SECONDS, nx=True)
 
             # Only start the agent loop if we successfully set the key
             if was_set:

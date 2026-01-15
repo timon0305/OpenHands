@@ -562,7 +562,7 @@ class TestRuntimeReadyWait:
 
 
 class TestRuntimeWaitTracker:
-    """Test the runtime wait tracker for concurrency limits and metrics."""
+    """Test the runtime wait tracker for metrics."""
 
     async def test_track_runtime_wait_increments_and_decrements(self):
         """Test that the tracker correctly increments and decrements the counter."""
@@ -597,33 +597,6 @@ class TestRuntimeWaitTracker:
 
         assert exception_raised
         assert get_current_wait_count() == initial_count
-
-    async def test_too_many_waiting_error(self):
-        """Test that TooManyWaitingError is raised when limit is exceeded."""
-        import integrations.slack.runtime_wait_tracker as tracker
-        from integrations.slack.runtime_wait_tracker import (
-            TooManyWaitingError,
-            track_runtime_wait,
-        )
-
-        # Save original values
-        original_max = tracker.MAX_CONCURRENT_RUNTIME_WAITS
-        original_count = tracker._current_wait_count
-
-        try:
-            # Set a low limit and simulate being at the limit
-            tracker.MAX_CONCURRENT_RUNTIME_WAITS = 2
-            tracker._current_wait_count = 2
-
-            with pytest.raises(TooManyWaitingError) as exc_info:
-                async with track_runtime_wait():
-                    pass
-
-            assert 'Something went wrong' in str(exc_info.value)
-        finally:
-            # Restore original values
-            tracker.MAX_CONCURRENT_RUNTIME_WAITS = original_max
-            tracker._current_wait_count = original_count
 
     async def test_concurrent_waits_tracked_correctly(self):
         """Test that multiple concurrent waits are tracked correctly."""

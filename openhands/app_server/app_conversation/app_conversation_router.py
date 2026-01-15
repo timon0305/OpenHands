@@ -524,9 +524,11 @@ async def get_conversation_skills(
         # Transform skills to response format
         skills_response = []
         for skill in all_skills:
-            # Determine type based on trigger
-            skill_type: Literal['repo', 'knowledge']
-            if skill.trigger is None:
+            # Determine type based on AgentSkills format and trigger
+            skill_type: Literal['repo', 'knowledge', 'agentskills']
+            if skill.is_agentskills_format:
+                skill_type = 'agentskills'
+            elif skill.trigger is None:
                 skill_type = 'repo'
             else:
                 skill_type = 'knowledge'

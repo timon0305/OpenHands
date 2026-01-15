@@ -503,13 +503,6 @@ async def get_conversation_skills(
 
         agent_server_url = replace_localhost_hostname_for_docker(agent_server_url)
 
-        # Create remote workspace
-        remote_workspace = AsyncRemoteWorkspace(
-            host=agent_server_url,
-            api_key=sandbox.session_api_key,
-            working_dir=sandbox_spec.working_dir,
-        )
-
         # Load skills from all sources
         logger.info(f'Loading skills for conversation {conversation_id}')
 
@@ -518,9 +511,9 @@ async def get_conversation_skills(
         if isinstance(app_conversation_service, AppConversationServiceBase):
             all_skills = await app_conversation_service.load_and_merge_all_skills(
                 sandbox,
-                remote_workspace,
                 conversation.selected_repository,
                 sandbox_spec.working_dir,
+                agent_server_url,
             )
 
         logger.info(

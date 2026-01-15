@@ -59,9 +59,9 @@ class AppConversationServiceBase(AppConversationService, ABC):
     async def load_and_merge_all_skills(
         self,
         sandbox: SandboxInfo,
-        remote_workspace: AsyncRemoteWorkspace,
         selected_repository: str | None,
         working_dir: str,
+        agent_server_url: str,
     ) -> list[Skill]:
         """Load skills from all sources via the agent-server.
 
@@ -75,9 +75,9 @@ class AppConversationServiceBase(AppConversationService, ABC):
 
         Args:
             sandbox: SandboxInfo containing exposed URLs and agent-server URL
-            remote_workspace: AsyncRemoteWorkspace (for determining working dir)
             selected_repository: Repository name or None
             working_dir: Working directory path
+            agent_server_url: Agent-server URL (required)
 
         Returns:
             List of merged Skill objects from all sources, or empty list on failure
@@ -85,8 +85,6 @@ class AppConversationServiceBase(AppConversationService, ABC):
         try:
             _logger.debug('Loading skills for V1 conversation via agent-server')
 
-            # Get agent-server URL from sandbox
-            agent_server_url = self._get_agent_server_url(sandbox)
             if not agent_server_url:
                 _logger.warning('No agent-server URL available, cannot load skills')
                 return []
@@ -127,28 +125,6 @@ class AppConversationServiceBase(AppConversationService, ABC):
             _logger.warning(f'Failed to load skills: {e}', exc_info=True)
             # Return empty list on failure - skills will be loaded again later if needed
             return []
-
-    def _get_agent_server_url(self, sandbox: SandboxInfo) -> str | None:
-        """Extract agent-server URL from sandbox exposed URLs.
-
-        Args:
-            sandbox: SandboxInfo containing exposed URLs
-
-        Returns:
-            Agent-server URL if found, None otherwise
-        """
-        if not sandbox.exposed_urls:
-            return None
-
-        for exposed_url in sandbox.exposed_urls:
-            if exposed_url.name == 'AGENT_SERVER':
-                from openhands.app_server.utils.docker_utils import (
-                    replace_localhost_hostname_for_docker,
-                )
-
-                return replace_localhost_hostname_for_docker(exposed_url.url)
-
-        return None
 
     def _create_agent_with_skills(self, agent, skills: list[Skill]):
         """Create or update agent with skills in its context.
@@ -217,8 +193,10 @@ class AppConversationServiceBase(AppConversationService, ABC):
             Updated agent with skills loaded into context
         """
         # Load and merge all skills
+        # Extract agent_server_url from remote_workspace host
+        agent_server_url = remote_workspace.host
         all_skills = await self.load_and_merge_all_skills(
-            sandbox, remote_workspace, selected_repository, working_dir
+            sandbox, selected_repository, working_dir, agent_server_url
         )
 
         # Update agent with skills
@@ -231,6 +209,7 @@ class AppConversationServiceBase(AppConversationService, ABC):
         task: AppConversationStartTask,
         sandbox: SandboxInfo,
         workspace: AsyncRemoteWorkspace,
+        agent_server_url: str,
     ) -> AsyncGenerator[AppConversationStartTask, None]:
         task.status = AppConversationStartTaskStatus.PREPARING_REPOSITORY
         yield task
@@ -248,9 +227,9 @@ class AppConversationServiceBase(AppConversationService, ABC):
         yield task
         await self.load_and_merge_all_skills(
             sandbox,
-            workspace,
             task.request.selected_repository,
             workspace.working_dir,
+            agent_server_url,
         )
 
     async def _configure_git_user_settings(

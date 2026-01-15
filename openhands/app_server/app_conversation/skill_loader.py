@@ -11,9 +11,9 @@ All source-specific skill loading is handled by the agent-server.
 """
 
 import logging
-from typing import Any
 
 import httpx
+from pydantic import BaseModel
 
 from openhands.app_server.sandbox.sandbox_models import SandboxInfo
 from openhands.app_server.user.user_context import UserContext
@@ -23,6 +23,40 @@ from openhands.sdk.context.skills import Skill
 from openhands.sdk.context.skills.trigger import KeywordTrigger, TaskTrigger
 
 _logger = logging.getLogger(__name__)
+
+
+class ExposedUrlConfig(BaseModel):
+    """Configuration for an exposed URL in sandbox config."""
+
+    name: str
+    url: str
+    port: int
+
+
+class SandboxConfig(BaseModel):
+    """Sandbox configuration for agent-server API request."""
+
+    exposed_urls: list[ExposedUrlConfig]
+
+
+class OrgConfig(BaseModel):
+    """Organization configuration for agent-server API request."""
+
+    repository: str
+    provider: str
+    org_repo_url: str
+    org_name: str
+
+
+class SkillInfo(BaseModel):
+    """Skill information from agent-server API response."""
+
+    name: str
+    content: str
+    triggers: list[str] = []
+    source: str | None = None
+    description: str | None = None
+    is_agentskills_format: bool = False
 
 
 async def _is_gitlab_repository(repo_name: str, user_context: UserContext) -> bool:
@@ -162,7 +196,7 @@ async def _get_org_repository_url(
 async def build_org_config(
     selected_repository: str | None,
     user_context: UserContext,
-) -> dict[str, Any] | None:
+) -> OrgConfig | None:
     """Build organization config for agent-server API request.
 
     Args:
@@ -194,19 +228,19 @@ async def build_org_config(
 
         provider = await _get_provider_type(selected_repository, user_context)
 
-        return {
-            'repository': selected_repository,
-            'provider': provider,
-            'org_repo_url': org_repo_url,
-            'org_name': org_name,
-        }
+        return OrgConfig(
+            repository=selected_repository,
+            provider=provider,
+            org_repo_url=org_repo_url,
+            org_name=org_name,
+        )
 
     except Exception as e:
         _logger.debug(f'Failed to build org config: {str(e)}')
         return None
 
 
-def build_sandbox_config(sandbox: SandboxInfo) -> dict[str, Any] | None:
+def build_sandbox_config(sandbox: SandboxInfo) -> SandboxConfig | None:
     """Build sandbox config for agent-server API request.
 
     Args:
@@ -219,23 +253,19 @@ def build_sandbox_config(sandbox: SandboxInfo) -> dict[str, Any] | None:
         return None
 
     exposed_urls = [
-        {
-            'name': url.name,
-            'url': url.url,
-            'port': url.port,
-        }
+        ExposedUrlConfig(name=url.name, url=url.url, port=url.port)
         for url in sandbox.exposed_urls
     ]
 
-    return {'exposed_urls': exposed_urls}
+    return SandboxConfig(exposed_urls=exposed_urls)
 
 
 async def load_skills_from_agent_server(
     agent_server_url: str,
     session_api_key: str | None,
     project_dir: str,
-    org_config: dict[str, Any] | None = None,
-    sandbox_config: dict[str, Any] | None = None,
+    org_config: OrgConfig | None = None,
+    sandbox_config: SandboxConfig | None = None,
     load_public: bool = True,
     load_user: bool = True,
     load_project: bool = True,
@@ -269,8 +299,8 @@ async def load_skills_from_agent_server(
             'load_project': load_project,
             'load_org': load_org,
             'project_dir': project_dir,
-            'org_config': org_config,
-            'sandbox_config': sandbox_config,
+            'org_config': org_config.model_dump() if org_config else None,
+            'sandbox_config': sandbox_config.model_dump() if sandbox_config else None,
         }
 
         # Build headers
@@ -292,14 +322,18 @@ async def load_skills_from_agent_server(
 
         # Convert response to Skill objects
         skills: list[Skill] = []
-        for skill_data in data.get('skills', []):
+        for skill_data_dict in data.get('skills', []):
             try:
-                skill = _convert_skill_info_to_skill(skill_data)
+                skill_info = SkillInfo.model_validate(skill_data_dict)
+                skill = _convert_skill_info_to_skill(skill_info)
                 skills.append(skill)
             except Exception as e:
-                _logger.warning(
-                    f'Failed to convert skill {skill_data.get("name", "unknown")}: {e}'
+                skill_name = (
+                    skill_data_dict.get('name', 'unknown')
+                    if isinstance(skill_data_dict, dict)
+                    else 'unknown'
                 )
+                _logger.warning(f'Failed to convert skill {skill_name}: {e}')
 
         sources = data.get('sources', {})
         _logger.info(
@@ -323,30 +357,29 @@ async def load_skills_from_agent_server(
         return []
 
 
-def _convert_skill_info_to_skill(skill_data: dict[str, Any]) -> Skill:
+def _convert_skill_info_to_skill(skill_info: SkillInfo) -> Skill:
     """Convert skill info from API response to Skill object.
 
     Args:
-        skill_data: Skill data dictionary from API response
+        skill_info: SkillInfo model from API response
 
     Returns:
         Skill object
     """
-    triggers_list = skill_data.get('triggers', [])
     trigger = None
 
-    if triggers_list:
+    if skill_info.triggers:
         # Determine trigger type based on content
-        if any(t.startswith('/') for t in triggers_list):
-            trigger = TaskTrigger(triggers=triggers_list)
+        if any(t.startswith('/') for t in skill_info.triggers):
+            trigger = TaskTrigger(triggers=skill_info.triggers)
         else:
-            trigger = KeywordTrigger(keywords=triggers_list)
+            trigger = KeywordTrigger(keywords=skill_info.triggers)
 
     return Skill(
-        name=skill_data['name'],
-        content=skill_data['content'],
+        name=skill_info.name,
+        content=skill_info.content,
         trigger=trigger,
-        source=skill_data.get('source'),
-        description=skill_data.get('description'),
-        is_agentskills_format=skill_data.get('is_agentskills_format', False),
+        source=skill_info.source,
+        description=skill_info.description,
+        is_agentskills_format=skill_info.is_agentskills_format,
     )

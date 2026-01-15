@@ -32,6 +32,7 @@ class ExposedUrlConfig(BaseModel):
     url: str
     port: int
 
+
 WORK_HOSTS_SKILL_FOOTER = """
 When starting a web server, use the corresponding ports via environment variables:
 - $WORKER_1 for the first port

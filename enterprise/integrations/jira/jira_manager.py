@@ -6,8 +6,8 @@ from urllib.parse import urlparse
 import httpx
 from fastapi import Request
 from integrations.jira.jira_types import JiraViewInterface
+from integrations.models import Message
 from integrations.jira.jira_view import (
-    JiraExistingConversationView,
     JiraFactory,
     JiraNewConversationView,
 )
@@ -82,14 +82,10 @@ class JiraManager(Manager):
             external_auth_id=user_id,
         )
 
-    async def validate_request(
-        self, request: Request
-    ) -> Tuple[bool, Optional[str], Optional[Dict]]:
+    async def verify_webhook_signature(
+        self, signature: str | None, body: bytes, payload: dict
+    ) -> bool:
         """Verify Jira webhook signature."""
-        signature_header = request.headers.get('x-hub-signature')
-        signature = signature_header.split('=')[1] if signature_header else None
-        body = await request.body()
-        payload = await request.json()
         workspace_name = ''
 
         if payload.get('webhookEvent') == 'comment_created':
@@ -134,84 +130,71 @@ class JiraManager(Manager):
         logger.warning('[Jira] Webhook signature verification failed')
         return False, None, None
 
-    def parse_webhook(self, payload: Dict) -> JobContext | None:
-        event_type = payload.get('webhookEvent')
+    # def parse_webhook(self, payload: Dict) -> JobContext | None:
+    #         issue_data = payload.get('issue', {})
+    #         issue_id = issue_data.get('id')
+    #         issue_key = issue_data.get('key')
+    #         base_api_url = issue_data.get('self', '').split('/rest/')[0]
 
-        if event_type == 'comment_created':
-            comment_data = payload.get('comment', {})
-            comment = comment_data.get('body', '')
+    #         user_data = comment_data.get('author', {})
+    #         user_email = user_data.get('emailAddress')
+    #         display_name = user_data.get('displayName')
+    #         account_id = user_data.get('accountId')
 
-            if '@openhands' not in comment:
-                return None
 
-            issue_data = payload.get('issue', {})
-            issue_id = issue_data.get('id')
-            issue_key = issue_data.get('key')
-            base_api_url = issue_data.get('self', '').split('/rest/')[0]
+    #         issue_data = payload.get('issue', {})
+    #         issue_id = issue_data.get('id')
+    #         issue_key = issue_data.get('key')
+    #         base_api_url = issue_data.get('self', '').split('/rest/')[0]
 
-            user_data = comment_data.get('author', {})
-            user_email = user_data.get('emailAddress')
-            display_name = user_data.get('displayName')
-            account_id = user_data.get('accountId')
-        elif event_type == 'jira:issue_updated':
-            changelog = payload.get('changelog', {})
-            items = changelog.get('items', [])
-            labels = [
-                item.get('toString', '')
-                for item in items
-                if item.get('field') == 'labels' and 'toString' in item
-            ]
+    #         user_data = payload.get('user', {})
+    #         user_email = user_data.get('emailAddress')
+    #         display_name = user_data.get('displayName')
+    #         account_id = user_data.get('accountId')
+    #         comment = ''
 
-            if 'openhands' not in labels:
-                return None
 
-            issue_data = payload.get('issue', {})
-            issue_id = issue_data.get('id')
-            issue_key = issue_data.get('key')
-            base_api_url = issue_data.get('self', '').split('/rest/')[0]
+    #     workspace_name = ''
 
-            user_data = payload.get('user', {})
-            user_email = user_data.get('emailAddress')
-            display_name = user_data.get('displayName')
-            account_id = user_data.get('accountId')
-            comment = ''
-        else:
-            return None
+    #     parsedUrl = urlparse(base_api_url)
+    #     if parsedUrl.hostname:
+    #         workspace_name = parsedUrl.hostname
 
-        workspace_name = ''
+    #     if not all(
+    #         [
+    #             issue_id,
+    #             issue_key,
+    #             user_email,
+    #             display_name,
+    #             account_id,
+    #             workspace_name,
+    #             base_api_url,
+    #         ]
+    #     ):
+    #         return None
 
-        parsedUrl = urlparse(base_api_url)
-        if parsedUrl.hostname:
-            workspace_name = parsedUrl.hostname
-
-        if not all(
-            [
-                issue_id,
-                issue_key,
-                user_email,
-                display_name,
-                account_id,
-                workspace_name,
-                base_api_url,
-            ]
-        ):
-            return None
-
-        return JobContext(
-            issue_id=issue_id,
-            issue_key=issue_key,
-            user_msg=comment,
-            user_email=user_email,
-            display_name=display_name,
-            platform_user_id=account_id,
-            workspace_name=workspace_name,
-            base_api_url=base_api_url,
-        )
+    #     return JobContext(
+    #         issue_id=issue_id,
+    #         issue_key=issue_key,
+    #         user_msg=comment,
+    #         user_email=user_email,
+    #         display_name=display_name,
+    #         platform_user_id=account_id,
+    #         workspace_name=workspace_name,
+    #         base_api_url=base_api_url,
+    #     )
 
     async def receive_message(self, message: Message):
         """Process incoming Jira webhook message."""
+        logger.info("Jira")
 
         payload = message.message.get('payload', {})
+        is_job_request = await self.is_job_requested(message)
+        if not is_job_request:
+            logger.info('[Jira] Webhook does not match trigger conditions')
+            return
+
+
         job_context = self.parse_webhook(payload)
 
         if not job_context:
@@ -301,15 +284,19 @@ class JiraManager(Manager):
         await self.start_job(jira_view)
 
     async def is_job_requested(
-        self, message: Message, jira_view: JiraViewInterface
+        self, message: Message
     ) -> bool:
         """
         Check if a job is requested and handle repository selection.
         """
 
-        if isinstance(jira_view, JiraExistingConversationView):
-            return True
+        return JiraFactory.is_labeled_ticket(
+            message
+        ) or JiraFactory.is_ticket_comment(message)
 
+    async def does_job_contain_details(
+        self, message: Message, jira_view: JiraViewInterface
+    ):
         try:
             # Get provider handler for repository verification
             provider_handler = await self._get_provider_handler(

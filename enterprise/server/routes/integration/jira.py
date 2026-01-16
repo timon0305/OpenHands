@@ -227,8 +227,12 @@ async def jira_events(
         )
 
     try:
-        signature_valid, signature, payload = await jira_manager.validate_request(
-            request
+        payload = await request.json()
+        body = await request.body()
+        signature_header = request.headers.get('x-hub-signature')
+        signature = signature_header.split('=')[1] if signature_header else None
+        signature_valid = await jira_manager.verify_webhook_signature(
+            signature, body, payload
         )
 
         if not signature_valid:

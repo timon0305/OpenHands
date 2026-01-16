@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import stat
 
 from integrations.jira.jira_types import JiraViewInterface, StartingConvoException
 from integrations.models import JobContext
@@ -15,13 +16,20 @@ from openhands.events.action import MessageAction
 from openhands.events.serialization.event import event_to_dict
 from openhands.server.services.conversation_service import (
     create_new_conversation,
-    setup_init_conversation_settings,
 )
 from openhands.server.shared import ConversationStoreImpl, config, conversation_manager
 from openhands.server.user_auth.user_auth import UserAuth
 from openhands.storage.data_models.conversation_metadata import ConversationTrigger
+from integrations.models import Message
+from integrations.utils import (
+    HOST,
+    get_oh_labels,
+    has_exact_mention
+)
 
 integration_store = JiraIntegrationStore.get_instance()
+
+OH_LABEL, INLINE_OH_LABEL = get_oh_labels(HOST)
 
 
 @dataclass
@@ -102,6 +110,40 @@ class JiraNewConversationView(JiraViewInterface):
 
 class JiraFactory:
     """Factory for creating Jira views based on message content"""
+
+
+    @staticmethod
+    def is_ticket_comment(message: Message):
+        payload = message.message.get('payload', {})
+        event_type = payload.get('webhookEvent')
+
+        if event_type == 'comment_created':
+            comment_data = payload.get('comment', {})
+            comment_body = comment_data.get('body', '')
+
+            return has_exact_mention(comment_body, INLINE_OH_LABEL)
+
+        return False
+
+
+    @staticmethod
+    def is_labeled_ticket(message: Message):
+        payload = message.message.get('payload', {})
+        event_type = payload.get('webhookEvent')
+
+        if event_type == 'jira:issue_updated':
+            changelog = payload.get('changelog', {})
+            items = changelog.get('items', [])
+            labels = [
+                item.get('toString', '')
+                for item in items
+                if item.get('field') == 'labels' and 'toString' in item
+            ]
+
+            return OH_LABEL in labels
+
+        return False
+
 
     @staticmethod
     async def create_jira_view_from_payload(

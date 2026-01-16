@@ -324,7 +324,10 @@ class JiraManager(Manager):
                         'issue_key': jira_view.job_context.issue_key,
                     },
                 )
-                await self._send_repo_selection_comment(jira_view)
+                # TODO: add re-login link
+                await self._send_error_comment(
+                    f"Failed to authenticate user {jira_view.job_context.display_name}"
+                )
                 return False
 
             target_str = f'{jira_view.job_context.issue_description}\n{jira_view.job_context.user_msg}'
@@ -504,7 +507,10 @@ class JiraManager(Manager):
         except Exception as e:
             logger.error(f'[Jira] Failed to send error comment: {str(e)}')
 
-    async def _send_repo_selection_comment(self, jira_view: JiraViewInterface):
+    async def _send_repo_selection_comment(
+        self,
+        jira_view: JiraViewInterface,
+    ):
         """Send a comment with repository options for the user to choose."""
         try:
             comment_msg = (

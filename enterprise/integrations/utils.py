@@ -565,7 +565,7 @@ class RepoVerificationResult:
 
 
 async def verify_inferred_repository(
-    user_msg: str, provider_handler: 'ProviderHandler'
+    user_msg: str, provider_handler: ProviderHandler
 ) -> RepoVerificationResult:
     """Verify repository access by inferring repo names from user message.
 
@@ -581,8 +581,6 @@ async def verify_inferred_repository(
         RepoVerificationResult with repository if exactly one valid repository
         is found and accessible, or failure_reason explaining why it failed.
     """
-    from openhands.integrations.provider import ProviderHandler
-
     inferred_repos = infer_repo_from_message(user_msg)
     if not inferred_repos:
         logger.info('[verify_inferred_repository] No repository references found in message')

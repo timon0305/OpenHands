@@ -230,20 +230,6 @@ class JiraIntegrationStore:
             session.add(jira_conversation)
             session.commit()
 
-    async def get_user_conversations_by_issue_id(
-        self, issue_id: str, jira_user_id: int
-    ) -> JiraConversation | None:
-        """Get a Jira conversation by issue ID and jira user ID."""
-        with session_maker() as session:
-            return (
-                session.query(JiraConversation)
-                .filter(
-                    JiraConversation.issue_id == issue_id,
-                    JiraConversation.jira_user_id == jira_user_id,
-                )
-                .first()
-            )
-
     @classmethod
     def get_instance(cls) -> JiraIntegrationStore:
         """Get an instance of the JiraIntegrationStore."""

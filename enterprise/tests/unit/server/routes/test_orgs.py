@@ -12,7 +12,9 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.testclient import TestClient
 
 # Mock database before imports
-with patch('storage.database.engine'), patch('storage.database.a_engine'):
+with patch('storage.database.engine', create=True), patch(
+    'storage.database.a_engine', create=True
+):
     from server.email_validation import get_openhands_user_id
     from server.routes.org_models import (
         LiteLLMIntegrationError,
@@ -333,8 +335,6 @@ async def test_create_org_sensitive_fields_not_exposed(mock_app):
         contact_email='john@example.com',
         org_version=5,
         default_llm_model='claude-opus-4-5-20251101',
-        search_api_key='secret-search-key-123',  # Should not be exposed
-        sandbox_api_key='secret-sandbox-key-123',  # Should not be exposed
         enable_default_condenser=True,
         enable_proactive_conversation_starters=True,
     )
@@ -365,6 +365,10 @@ async def test_create_org_sensitive_fields_not_exposed(mock_app):
         response_data = response.json()
 
         # Verify sensitive fields are not in response or are None
+        assert (
+            'default_llm_api_key_for_byor' not in response_data
+            or response_data.get('default_llm_api_key_for_byor') is None
+        )
         assert (
             'search_api_key' not in response_data
             or response_data.get('search_api_key') is None

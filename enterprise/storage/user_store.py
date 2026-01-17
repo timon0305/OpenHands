@@ -6,6 +6,7 @@ import asyncio
 import uuid
 from typing import Optional
 
+from server.auth.token_manager import TokenManager
 from server.constants import (
     LITE_LLM_API_URL,
     ORG_SETTINGS_VERSION,
@@ -299,7 +300,12 @@ class UserStore:
 
     @staticmethod
     def get_user_by_id(user_id: str) -> Optional[User]:
-        """Get user by Keycloak user ID."""
+        """Get user by Keycloak user ID (sync version).
+
+        Note: This method uses call_async_from_sync internally which creates a new
+        event loop. If you're already in an async context, use get_user_by_id_async
+        instead to avoid event loop conflicts.
+        """
         with session_maker() as session:
             user = (
                 session.query(User)
@@ -342,8 +348,6 @@ class UserStore:
                 .first()
             )
             if user_settings:
-                from server.auth.token_manager import TokenManager
-
                 token_manager = TokenManager()
                 user_info = call_async_from_sync(
                     token_manager.get_user_info_from_user_id,
@@ -353,6 +357,62 @@ class UserStore:
                 user = call_async_from_sync(
                     UserStore.migrate_user,
                     GENERAL_TIMEOUT,
+                    user_id,
+                    user_settings,
+                    user_info,
+                )
+                return user
+            else:
+                return None
+
+    @staticmethod
+    async def get_user_by_id_async(user_id: str) -> Optional[User]:
+        """Get user by Keycloak user ID (async version).
+
+        This is the preferred method when calling from an async context as it
+        avoids event loop conflicts that can occur with the sync version.
+        """
+        with session_maker() as session:
+            user = (
+                session.query(User)
+                .options(joinedload(User.org_members))
+                .filter(User.id == uuid.UUID(user_id))
+                .first()
+            )
+            if user:
+                return user
+
+            # Check if we need to migrate from user_settings
+            while not await UserStore._acquire_user_creation_lock(user_id):
+                # The user is already being created in another thread / process
+                logger.info(
+                    'saas_settings_store:create_default_settings:waiting_for_lock',
+                    extra={'user_id': user_id},
+                )
+                await asyncio.sleep(_RETRY_LOAD_DELAY_SECONDS)
+
+            # Check for user again as migration could have happened while trying to get the lock.
+            user = (
+                session.query(User)
+                .options(joinedload(User.org_members))
+                .filter(User.id == uuid.UUID(user_id))
+                .first()
+            )
+            if user:
+                return user
+
+            user_settings = (
+                session.query(UserSettings)
+                .filter(
+                    UserSettings.keycloak_user_id == user_id,
+                    UserSettings.already_migrated.is_(False),
+                )
+                .first()
+            )
+            if user_settings:
+                token_manager = TokenManager()
+                user_info = await token_manager.get_user_info_from_user_id(user_id)
+                user = await UserStore.migrate_user(
                     user_id,
                     user_settings,
                     user_info,
@@ -375,7 +435,7 @@ class UserStore:
 
     @staticmethod
     async def create_default_settings(
-        org_id: str, user_id: str
+        org_id: str, user_id: str, create_user: bool = True
     ) -> Optional['Settings']:
         logger.info(
             'UserStore:create_default_settings:start',
@@ -391,7 +451,9 @@ class UserStore:
 
         from storage.lite_llm_manager import LiteLlmManager
 
-        settings = await LiteLlmManager.create_entries(org_id, user_id, settings)
+        settings = await LiteLlmManager.create_entries(
+            org_id, user_id, settings, create_user
+        )
         if not settings:
             logger.info(
                 'UserStore:create_default_settings:litellm_create_failed',
@@ -455,7 +517,7 @@ class UserStore:
         # Check if model matches old version's default
         if (
             old_user_version
-            and old_user_version < ORG_SETTINGS_VERSION
+            and old_user_version <= ORG_SETTINGS_VERSION
             and old_user_version in PERSONAL_WORKSPACE_VERSION_TO_MODEL
         ):
             old_default_base = PERSONAL_WORKSPACE_VERSION_TO_MODEL[old_user_version]

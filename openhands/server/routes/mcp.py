@@ -403,18 +403,12 @@ async def upload_image(
             description='Optional MIME type of the image (e.g., "image/png", "image/jpeg"). Used to determine file extension if filename is not provided.'
         ),
     ] = None,
-    public: Annotated[
-        bool,
-        Field(
-            description='If True, make the image publicly accessible and return a public URL. Default is False.'
-        ),
-    ] = False,
 ) -> str:
     """Upload an image to the conversation's image storage.
 
     This tool accepts a base64-encoded image and stores it in the conversation's
-    images directory. Returns the file path where the image is stored, or a public
-    URL if public=True and the storage backend supports it.
+    images directory. The image is made publicly accessible and the public URL
+    is returned if the storage backend supports it, otherwise the file path is returned.
     """
     logger.info('Calling OpenHands MCP upload_image')
 
@@ -463,16 +457,15 @@ async def upload_image(
         conversation_dir = get_conversation_dir(conversation_id, user_id)
         image_path = f'{conversation_dir}images/{safe_filename}'
 
-        # Write the image to the file store (with public flag)
-        file_store.write(image_path, image_bytes, public=public)
+        # Write the image to the file store (always public)
+        file_store.write(image_path, image_bytes, public=True)
 
         logger.info(f'Image uploaded successfully: {image_path}')
 
-        # Return public URL if requested and available, otherwise return the path
-        if public:
-            public_url = file_store.get_public_url(image_path)
-            if public_url:
-                return public_url
+        # Return public URL if available, otherwise return the path
+        public_url = file_store.get_public_url(image_path)
+        if public_url:
+            return public_url
 
         return image_path
 

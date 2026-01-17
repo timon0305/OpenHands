@@ -173,6 +173,7 @@ class TestUploadImage:
         mock_request.headers = {'X-OpenHands-ServerConversation-ID': 'test-conv-123'}
 
         mock_file_store = MagicMock()
+        mock_file_store.get_public_url.return_value = None  # No public URL support
 
         with (
             patch(
@@ -189,15 +190,16 @@ class TestUploadImage:
             # Access the underlying function from the FunctionTool
             result = await upload_image.fn(image_data=test_image_data)
 
-            # Verify file_store.write was called
+            # Verify file_store.write was called with public=True
             mock_file_store.write.assert_called_once()
             call_args = mock_file_store.write.call_args
 
             # Check the path is in the correct location
             assert 'users/user-456/conversations/test-conv-123/images/' in call_args[0][0]
             assert call_args[0][0].endswith('.png')
+            assert call_args.kwargs.get('public') is True
 
-            # Check the result path
+            # Check the result path (falls back to path when no public URL)
             assert 'images/' in result
             assert result.endswith('.png')
 
@@ -211,6 +213,7 @@ class TestUploadImage:
         mock_request.headers = {'X-OpenHands-ServerConversation-ID': 'test-conv-123'}
 
         mock_file_store = MagicMock()
+        mock_file_store.get_public_url.return_value = None
 
         with (
             patch(
@@ -226,11 +229,12 @@ class TestUploadImage:
         ):
             result = await upload_image.fn(image_data=test_image_data)
 
-            # Verify file_store.write was called with correct data
+            # Verify file_store.write was called with correct data and public=True
             mock_file_store.write.assert_called_once()
             call_args = mock_file_store.write.call_args
             assert call_args[0][1] == test_image_bytes
             assert call_args[0][0].endswith('.png')
+            assert call_args.kwargs.get('public') is True
 
     @pytest.mark.asyncio
     async def test_upload_image_with_custom_filename(self):
@@ -241,6 +245,7 @@ class TestUploadImage:
         mock_request.headers = {'X-OpenHands-ServerConversation-ID': 'test-conv-123'}
 
         mock_file_store = MagicMock()
+        mock_file_store.get_public_url.return_value = None
 
         with (
             patch(
@@ -258,10 +263,11 @@ class TestUploadImage:
                 image_data=test_image_data, filename='my_screenshot.png'
             )
 
-            # Verify the filename is used
+            # Verify the filename is used and public=True
             mock_file_store.write.assert_called_once()
             call_args = mock_file_store.write.call_args
             assert 'my_screenshot.png' in call_args[0][0]
+            assert call_args.kwargs.get('public') is True
             assert 'my_screenshot.png' in result
 
     @pytest.mark.asyncio
@@ -323,6 +329,7 @@ class TestUploadImage:
         mock_request.headers = {'X-OpenHands-ServerConversation-ID': 'test-conv-123'}
 
         mock_file_store = MagicMock()
+        mock_file_store.get_public_url.return_value = None
 
         with (
             patch(
@@ -338,16 +345,17 @@ class TestUploadImage:
         ):
             result = await upload_image.fn(image_data=test_image_data)
 
-            # Verify file_store.write was called
+            # Verify file_store.write was called with public=True
             mock_file_store.write.assert_called_once()
             call_args = mock_file_store.write.call_args
 
             # Check the path is in the session-based location
             assert 'sessions/test-conv-123/images/' in call_args[0][0]
+            assert call_args.kwargs.get('public') is True
 
     @pytest.mark.asyncio
-    async def test_upload_image_public(self):
-        """Test image upload with public=True returns public URL."""
+    async def test_upload_image_returns_public_url(self):
+        """Test image upload returns public URL when storage supports it."""
         test_image_data = base64.b64encode(b'\x89PNG\r\n\x1a\n').decode()
 
         mock_request = MagicMock()
@@ -370,7 +378,7 @@ class TestUploadImage:
             ),
             patch('openhands.server.routes.mcp.file_store', mock_file_store),
         ):
-            result = await upload_image.fn(image_data=test_image_data, public=True)
+            result = await upload_image.fn(image_data=test_image_data)
 
             # Verify file_store.write was called with public=True
             mock_file_store.write.assert_called_once()
@@ -384,8 +392,8 @@ class TestUploadImage:
             assert result == 'https://storage.googleapis.com/bucket/path/to/image.png'
 
     @pytest.mark.asyncio
-    async def test_upload_image_public_no_url_support(self):
-        """Test image upload with public=True falls back to path when URL not supported."""
+    async def test_upload_image_falls_back_to_path(self):
+        """Test image upload falls back to path when public URL not supported."""
         test_image_data = base64.b64encode(b'\x89PNG\r\n\x1a\n').decode()
 
         mock_request = MagicMock()
@@ -406,7 +414,7 @@ class TestUploadImage:
             ),
             patch('openhands.server.routes.mcp.file_store', mock_file_store),
         ):
-            result = await upload_image.fn(image_data=test_image_data, public=True)
+            result = await upload_image.fn(image_data=test_image_data)
 
             # Verify file_store.write was called with public=True
             mock_file_store.write.assert_called_once()

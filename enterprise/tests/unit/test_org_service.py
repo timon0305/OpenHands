@@ -11,7 +11,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # Mock the database module before importing OrgService
-with patch('storage.database.engine'), patch('storage.database.a_engine'):
+with patch('storage.database.engine', create=True), patch(
+    'storage.database.a_engine', create=True
+):
     from server.routes.org_models import (
         LiteLLMIntegrationError,
         OrgAuthorizationError,
@@ -76,7 +78,8 @@ def test_validate_name_uniqueness_with_unique_name(session_maker):
     unique_name = 'unique-org-name'
 
     # Act & Assert - should not raise
-    OrgService.validate_name_uniqueness(unique_name)
+    with patch('storage.org_store.session_maker', session_maker):
+        OrgService.validate_name_uniqueness(unique_name)
 
 
 def test_validate_name_uniqueness_with_duplicate_name(session_maker):
@@ -127,6 +130,7 @@ async def test_create_org_with_owner_success(
 
     with (
         patch('storage.org_store.session_maker', session_maker),
+        patch('storage.role_store.session_maker', session_maker),
         patch(
             'storage.org_service.UserStore.create_default_settings',
             AsyncMock(return_value=mock_settings),
@@ -194,6 +198,7 @@ async def test_create_org_with_owner_duplicate_name(
     # Act & Assert
     with (
         patch('storage.org_store.session_maker', session_maker),
+        patch('storage.role_store.session_maker', session_maker),
         patch(
             'storage.org_service.UserStore.create_default_settings',
             mock_create_settings,
@@ -224,9 +229,12 @@ async def test_create_org_with_owner_litellm_failure(
     org_name = 'test-org'
 
     # Mock LiteLLM failure
-    with patch(
-        'storage.org_service.UserStore.create_default_settings',
-        AsyncMock(return_value=None),
+    with (
+        patch('storage.org_store.session_maker', session_maker),
+        patch(
+            'storage.org_service.UserStore.create_default_settings',
+            AsyncMock(return_value=None),
+        ),
     ):
         # Act & Assert
         with pytest.raises(LiteLLMIntegrationError):
@@ -265,6 +273,8 @@ async def test_create_org_with_owner_database_failure_triggers_cleanup(
     mock_settings = {'team_id': 'test-team', 'user_id': user_id}
 
     with (
+        patch('storage.org_store.session_maker', session_maker),
+        patch('storage.role_store.session_maker', session_maker),
         patch(
             'storage.org_service.UserStore.create_default_settings',
             AsyncMock(return_value=mock_settings),
@@ -316,6 +326,7 @@ async def test_create_org_with_owner_entity_creation_failure_triggers_cleanup(
     mock_settings = {'team_id': 'test-team', 'user_id': user_id}
 
     with (
+        patch('storage.org_store.session_maker', session_maker),
         patch(
             'storage.org_service.UserStore.create_default_settings',
             AsyncMock(return_value=mock_settings),

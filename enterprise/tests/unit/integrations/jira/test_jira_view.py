@@ -266,6 +266,52 @@ class TestJiraFactory:
 
     @pytest.mark.asyncio
     @patch('integrations.jira.jira_view.JiraFactory._create_provider_handler')
+    @patch('integrations.jira.jira_view.infer_repo_from_message')
+    async def test_create_view_multiple_repos_verified(
+        self,
+        mock_infer_repos,
+        mock_create_handler,
+        sample_webhook_payload,
+        sample_user_auth,
+        sample_jira_user,
+        sample_jira_workspace,
+        sample_repositories,
+    ):
+        """Test factory raises error when multiple repos are verified."""
+        mock_handler = MagicMock()
+        # Both repos verify successfully
+        mock_handler.verify_repo_provider = AsyncMock(
+            side_effect=[sample_repositories[0], sample_repositories[1]]
+        )
+        mock_create_handler.return_value = mock_handler
+
+        # Multiple repos found in text
+        mock_infer_repos.return_value = ['test/repo1', 'test/repo2']
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            'fields': {'summary': 'Test Issue', 'description': 'Test description'}
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch('httpx.AsyncClient') as mock_client:
+            mock_client.return_value.__aenter__.return_value.get = AsyncMock(
+                return_value=mock_response
+            )
+
+            with pytest.raises(
+                RepositoryNotFoundError, match='Multiple repositories found'
+            ):
+                await JiraFactory.create_view(
+                    payload=sample_webhook_payload,
+                    workspace=sample_jira_workspace,
+                    user=sample_jira_user,
+                    user_auth=sample_user_auth,
+                    decrypted_api_key='test_api_key',
+                )
+
+    @pytest.mark.asyncio
+    @patch('integrations.jira.jira_view.JiraFactory._create_provider_handler')
     async def test_create_view_no_provider(
         self,
         mock_create_handler,

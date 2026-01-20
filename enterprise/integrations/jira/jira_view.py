@@ -266,7 +266,8 @@ class JiraFactory:
             The verified repository full name
 
         Raises:
-            RepositoryNotFoundError: If no valid repository can be determined
+            RepositoryNotFoundError: If no valid repository can be determined,
+                or if multiple valid repositories are found (ambiguous)
         """
         provider_handler = await JiraFactory._create_provider_handler(user_auth)
 
@@ -295,18 +296,19 @@ class JiraFactory:
             },
         )
 
-        # Try to verify each potential repo until we find one the user has access to
+        # Verify each potential repo and collect the ones the user has access to
+        verified_repos: list[str] = []
         for repo_name in potential_repos:
             try:
                 repository = await provider_handler.verify_repo_provider(repo_name)
-                logger.info(
-                    '[Jira] Verified repository access',
+                verified_repos.append(repository.full_name)
+                logger.debug(
+                    '[Jira] Repository verification succeeded',
                     extra={
                         'issue_key': payload.issue_key,
                         'repository': repository.full_name,
                     },
                 )
-                return repository.full_name
             except Exception as e:
                 logger.debug(
                     '[Jira] Repository verification failed',
@@ -318,11 +320,28 @@ class JiraFactory:
                 )
                 continue
 
-        # None of the potential repos were accessible
-        raise RepositoryNotFoundError(
-            f'Could not access any of the mentioned repositories: {", ".join(potential_repos)}. '
-            'Please ensure you have access to the repository and it exists.'
+        # Check results
+        if len(verified_repos) == 0:
+            raise RepositoryNotFoundError(
+                f'Could not access any of the mentioned repositories: {", ".join(potential_repos)}. '
+                'Please ensure you have access to the repository and it exists.'
+            )
+
+        if len(verified_repos) > 1:
+            raise RepositoryNotFoundError(
+                f'Multiple repositories found: {", ".join(verified_repos)}. '
+                'Please specify exactly one repository in the issue description or comment.'
+            )
+
+        # Exactly one verified repo
+        logger.info(
+            '[Jira] Verified repository access',
+            extra={
+                'issue_key': payload.issue_key,
+                'repository': verified_repos[0],
+            },
         )
+        return verified_repos[0]
 
     @staticmethod
     async def create_view(

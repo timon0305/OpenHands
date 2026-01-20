@@ -15,7 +15,7 @@ from integrations.jira.jira_types import (
     RepositoryNotFoundError,
     StartingConvoException,
 )
-from integrations.utils import CONVERSATION_URL, filter_potential_repos_by_user_msg
+from integrations.utils import CONVERSATION_URL, infer_repo_from_message
 from jinja2 import Environment
 from storage.jira_conversation import JiraConversation
 from storage.jira_integration_store import JiraIntegrationStore
@@ -24,9 +24,7 @@ from storage.jira_workspace import JiraWorkspace
 
 from openhands.core.logger import openhands_logger as logger
 from openhands.integrations.provider import ProviderHandler
-from openhands.integrations.service_types import Repository
 from openhands.server.services.conversation_service import create_new_conversation
-from openhands.server.shared import server_config
 from openhands.server.user_auth.user_auth import UserAuth
 from openhands.storage.data_models.conversation_metadata import ConversationTrigger
 from openhands.utils.http_session import httpx_verify_option
@@ -230,25 +228,20 @@ class JiraFactory:
     """
 
     @staticmethod
-    async def _get_user_repositories(user_auth: UserAuth) -> list[Repository]:
-        """Get repositories the user has access to."""
+    async def _create_provider_handler(user_auth: UserAuth) -> ProviderHandler | None:
+        """Create a ProviderHandler for the user."""
         provider_tokens = await user_auth.get_provider_tokens()
         if provider_tokens is None:
-            return []
+            return None
 
         access_token = await user_auth.get_access_token()
         user_id = await user_auth.get_user_id()
 
-        client = ProviderHandler(
+        return ProviderHandler(
             provider_tokens=provider_tokens,
             external_auth_token=access_token,
             external_auth_id=user_id,
         )
-
-        repos: list[Repository] = await client.get_repositories(
-            'pushed', server_config.app_mode, None, None, None, None
-        )
-        return repos
 
     @staticmethod
     async def _infer_repository(
@@ -257,48 +250,78 @@ class JiraFactory:
         issue_title: str,
         issue_description: str,
     ) -> str:
-        """Attempt to infer the repository from issue content.
+        """Attempt to infer and verify the repository from issue content.
+
+        Uses infer_repo_from_message to extract potential repo names from the
+        issue content, then verifies them using ProviderHandler.verify_repo_provider
+        to ensure the user has access.
 
         Args:
             payload: The webhook payload
-            user_auth: User authentication for fetching repos
+            user_auth: User authentication for verifying repos
             issue_title: The issue title
             issue_description: The issue description
 
         Returns:
-            The inferred repository full name
+            The verified repository full name
 
         Raises:
-            RepositoryNotFoundError: If no repository can be determined
+            RepositoryNotFoundError: If no valid repository can be determined
         """
-        user_repos = await JiraFactory._get_user_repositories(user_auth)
+        provider_handler = await JiraFactory._create_provider_handler(user_auth)
 
-        if not user_repos:
+        if not provider_handler:
             raise RepositoryNotFoundError(
-                'No repositories found. Please connect a Git provider in OpenHands settings.'
+                'No Git provider connected. Please connect a Git provider in OpenHands settings.'
             )
 
         # Combine all text sources for repo inference
         search_text = f'{issue_title}\n{issue_description}\n{payload.user_msg}'
 
-        match_found, matched_repos = filter_potential_repos_by_user_msg(
-            search_text, user_repos
+        # Extract potential repo names from the text
+        potential_repos = infer_repo_from_message(search_text)
+
+        if not potential_repos:
+            raise RepositoryNotFoundError(
+                'Could not determine which repository to use. '
+                'Please mention the repository (e.g., owner/repo) in the issue description or comment.'
+            )
+
+        logger.info(
+            '[Jira] Found potential repositories in issue content',
+            extra={
+                'issue_key': payload.issue_key,
+                'potential_repos': potential_repos,
+            },
         )
 
-        if match_found and matched_repos:
-            logger.info(
-                '[Jira] Inferred repository from issue content',
-                extra={
-                    'issue_key': payload.issue_key,
-                    'inferred_repo': matched_repos[0].full_name,
-                },
-            )
-            return matched_repos[0].full_name
+        # Try to verify each potential repo until we find one the user has access to
+        for repo_name in potential_repos:
+            try:
+                repository = await provider_handler.verify_repo_provider(repo_name)
+                logger.info(
+                    '[Jira] Verified repository access',
+                    extra={
+                        'issue_key': payload.issue_key,
+                        'repository': repository.full_name,
+                    },
+                )
+                return repository.full_name
+            except Exception as e:
+                logger.debug(
+                    '[Jira] Repository verification failed',
+                    extra={
+                        'issue_key': payload.issue_key,
+                        'repo_name': repo_name,
+                        'error': str(e),
+                    },
+                )
+                continue
 
-        # No match found - provide helpful error
+        # None of the potential repos were accessible
         raise RepositoryNotFoundError(
-            'Could not determine which repository to use. '
-            'Please mention the repository (e.g., owner/repo) in the issue description or comment.'
+            f'Could not access any of the mentioned repositories: {", ".join(potential_repos)}. '
+            'Please ensure you have access to the repository and it exists.'
         )
 
     @staticmethod

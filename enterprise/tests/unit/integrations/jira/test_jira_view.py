@@ -135,12 +135,12 @@ class TestJiraFactory:
     """Tests for JiraFactory"""
 
     @pytest.mark.asyncio
-    @patch('integrations.jira.jira_view.JiraFactory._get_user_repositories')
-    @patch('integrations.jira.jira_view.filter_potential_repos_by_user_msg')
+    @patch('integrations.jira.jira_view.JiraFactory._create_provider_handler')
+    @patch('integrations.jira.jira_view.infer_repo_from_message')
     async def test_create_view_success(
         self,
-        mock_filter_repos,
-        mock_get_repos,
+        mock_infer_repos,
+        mock_create_handler,
         sample_webhook_payload,
         sample_user_auth,
         sample_jira_user,
@@ -148,8 +148,13 @@ class TestJiraFactory:
         sample_repositories,
     ):
         """Test factory creating view with repo selection."""
-        mock_get_repos.return_value = sample_repositories
-        mock_filter_repos.return_value = (True, [sample_repositories[0]])
+        # Setup mock provider handler
+        mock_handler = MagicMock()
+        mock_handler.verify_repo_provider = AsyncMock(return_value=sample_repositories[0])
+        mock_create_handler.return_value = mock_handler
+
+        # Mock repo inference to return a repo name
+        mock_infer_repos.return_value = ['test/repo1']
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -172,23 +177,26 @@ class TestJiraFactory:
 
             assert isinstance(view, JiraNewConversationView)
             assert view.selected_repo == 'test/repo1'
+            mock_handler.verify_repo_provider.assert_called_once_with('test/repo1')
 
     @pytest.mark.asyncio
-    @patch('integrations.jira.jira_view.JiraFactory._get_user_repositories')
-    @patch('integrations.jira.jira_view.filter_potential_repos_by_user_msg')
-    async def test_create_view_no_repo_match(
+    @patch('integrations.jira.jira_view.JiraFactory._create_provider_handler')
+    @patch('integrations.jira.jira_view.infer_repo_from_message')
+    async def test_create_view_no_repo_in_text(
         self,
-        mock_filter_repos,
-        mock_get_repos,
+        mock_infer_repos,
+        mock_create_handler,
         sample_webhook_payload,
         sample_user_auth,
         sample_jira_user,
         sample_jira_workspace,
-        sample_repositories,
     ):
-        """Test factory raises error when no repo can be determined."""
-        mock_get_repos.return_value = sample_repositories
-        mock_filter_repos.return_value = (False, sample_repositories)  # No exact match
+        """Test factory raises error when no repo mentioned in text."""
+        mock_handler = MagicMock()
+        mock_create_handler.return_value = mock_handler
+
+        # No repos found in text
+        mock_infer_repos.return_value = []
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -213,17 +221,26 @@ class TestJiraFactory:
                 )
 
     @pytest.mark.asyncio
-    @patch('integrations.jira.jira_view.JiraFactory._get_user_repositories')
-    async def test_create_view_no_repositories(
+    @patch('integrations.jira.jira_view.JiraFactory._create_provider_handler')
+    @patch('integrations.jira.jira_view.infer_repo_from_message')
+    async def test_create_view_repo_verification_fails(
         self,
-        mock_get_repos,
+        mock_infer_repos,
+        mock_create_handler,
         sample_webhook_payload,
         sample_user_auth,
         sample_jira_user,
         sample_jira_workspace,
     ):
-        """Test factory raises error when user has no repositories."""
-        mock_get_repos.return_value = []
+        """Test factory raises error when repo verification fails."""
+        mock_handler = MagicMock()
+        mock_handler.verify_repo_provider = AsyncMock(
+            side_effect=Exception('Repository not found')
+        )
+        mock_create_handler.return_value = mock_handler
+
+        # Repos found in text but verification fails
+        mock_infer_repos.return_value = ['test/repo1', 'test/repo2']
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -236,7 +253,42 @@ class TestJiraFactory:
                 return_value=mock_response
             )
 
-            with pytest.raises(RepositoryNotFoundError, match='No repositories found'):
+            with pytest.raises(
+                RepositoryNotFoundError, match='Could not access any of the mentioned repositories'
+            ):
+                await JiraFactory.create_view(
+                    payload=sample_webhook_payload,
+                    workspace=sample_jira_workspace,
+                    user=sample_jira_user,
+                    user_auth=sample_user_auth,
+                    decrypted_api_key='test_api_key',
+                )
+
+    @pytest.mark.asyncio
+    @patch('integrations.jira.jira_view.JiraFactory._create_provider_handler')
+    async def test_create_view_no_provider(
+        self,
+        mock_create_handler,
+        sample_webhook_payload,
+        sample_user_auth,
+        sample_jira_user,
+        sample_jira_workspace,
+    ):
+        """Test factory raises error when no provider is connected."""
+        mock_create_handler.return_value = None
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            'fields': {'summary': 'Test Issue', 'description': 'Test description'}
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch('httpx.AsyncClient') as mock_client:
+            mock_client.return_value.__aenter__.return_value.get = AsyncMock(
+                return_value=mock_response
+            )
+
+            with pytest.raises(RepositoryNotFoundError, match='No Git provider connected'):
                 await JiraFactory.create_view(
                     payload=sample_webhook_payload,
                     workspace=sample_jira_workspace,

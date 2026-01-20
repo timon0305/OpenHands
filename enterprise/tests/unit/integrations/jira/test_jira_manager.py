@@ -7,15 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from integrations.jira.jira_manager import JiraManager
 from integrations.jira.jira_payload import JiraEventType, JiraWebhookPayload
-from integrations.jira.jira_types import (
-    JiraViewInterface,
-    RepositoryNotFoundError,
-    StartingConvoException,
-)
-from integrations.jira.jira_view import JiraNewConversationView
 from integrations.models import Message, SourceType
 
-from openhands.integrations.service_types import ProviderType, Repository
 from openhands.server.types import (
     LLMAuthenticationError,
     MissingSettingsError,

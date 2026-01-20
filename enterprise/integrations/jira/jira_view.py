@@ -109,7 +109,10 @@ class JiraNewConversationView(JiraViewInterface):
         except httpx.HTTPStatusError as e:
             logger.error(
                 '[Jira] Failed to fetch issue details',
-                extra={'issue_key': self.payload.issue_key, 'status': e.response.status_code},
+                extra={
+                    'issue_key': self.payload.issue_key,
+                    'status': e.response.status_code,
+                },
             )
             raise StartingConvoException(
                 f'Failed to fetch issue details: HTTP {e.response.status_code}'
@@ -398,9 +401,7 @@ class JiraFactory:
         except StartingConvoException:
             raise  # Re-raise with original message
         except Exception as e:
-            raise StartingConvoException(
-                f'Failed to fetch issue details: {str(e)}'
-            )
+            raise StartingConvoException(f'Failed to fetch issue details: {str(e)}')
 
         # Infer and select repository
         selected_repo = await JiraFactory._infer_repository(

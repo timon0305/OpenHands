@@ -8,7 +8,6 @@ import pytest
 from integrations.jira.jira_manager import JiraManager
 from integrations.jira.jira_payload import (
     JiraEventType,
-    JiraPayloadParser,
     JiraWebhookPayload,
 )
 from integrations.jira.jira_view import (

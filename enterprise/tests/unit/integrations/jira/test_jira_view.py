@@ -8,16 +8,12 @@ import pytest
 from integrations.jira.jira_payload import (
     JiraEventType,
     JiraPayloadParser,
-    JiraWebhookPayload,
 )
 from integrations.jira.jira_types import RepositoryNotFoundError, StartingConvoException
 from integrations.jira.jira_view import (
     JiraFactory,
     JiraNewConversationView,
 )
-from integrations.models import Message, SourceType
-
-from openhands.integrations.service_types import ProviderType, Repository
 
 
 class TestJiraNewConversationView:
@@ -150,7 +146,9 @@ class TestJiraFactory:
         """Test factory creating view with repo selection."""
         # Setup mock provider handler
         mock_handler = MagicMock()
-        mock_handler.verify_repo_provider = AsyncMock(return_value=sample_repositories[0])
+        mock_handler.verify_repo_provider = AsyncMock(
+            return_value=sample_repositories[0]
+        )
         mock_create_handler.return_value = mock_handler
 
         # Mock repo inference to return a repo name
@@ -254,7 +252,8 @@ class TestJiraFactory:
             )
 
             with pytest.raises(
-                RepositoryNotFoundError, match='Could not access any of the mentioned repositories'
+                RepositoryNotFoundError,
+                match='Could not access any of the mentioned repositories',
             ):
                 await JiraFactory.create_view(
                     payload=sample_webhook_payload,
@@ -334,7 +333,9 @@ class TestJiraFactory:
                 return_value=mock_response
             )
 
-            with pytest.raises(RepositoryNotFoundError, match='No Git provider connected'):
+            with pytest.raises(
+                RepositoryNotFoundError, match='No Git provider connected'
+            ):
                 await JiraFactory.create_view(
                     payload=sample_webhook_payload,
                     workspace=sample_jira_workspace,
@@ -352,7 +353,9 @@ class TestJiraPayloadParser:
         """Create a parser for testing."""
         return JiraPayloadParser(oh_label='openhands', inline_oh_label='@openhands')
 
-    def test_parse_label_event_success(self, parser, sample_issue_update_webhook_payload):
+    def test_parse_label_event_success(
+        self, parser, sample_issue_update_webhook_payload
+    ):
         """Test parsing label event."""
         result = parser.parse(sample_issue_update_webhook_payload)
 

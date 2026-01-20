@@ -236,6 +236,14 @@ class JiraPayloadParser:
                 f"Missing required fields: {', '.join(missing_fields)}"
             )
 
+        # At this point, all required fields are validated as non-None
+        # Use assertions to help mypy understand the types
+        assert issue_id is not None
+        assert issue_key is not None
+        assert user_email is not None
+        assert display_name is not None
+        assert account_id is not None
+
         return JiraPayloadParseResult.ok(
             JiraWebhookPayload(
                 event_type=event_type,

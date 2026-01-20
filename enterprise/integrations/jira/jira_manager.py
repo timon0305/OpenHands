@@ -155,7 +155,9 @@ class JiraManager(Manager):
                 exc_info=True,
             )
             await self._send_error_from_payload(
-                payload, workspace, 'Failed to initialize conversation. Please try again.'
+                payload,
+                workspace,
+                'Failed to initialize conversation. Please try again.',
             )
             return
 
@@ -228,7 +230,9 @@ class JiraManager(Manager):
             )
             return None, None
 
-        saas_user_auth = await get_user_auth_from_keycloak_id(jira_user.keycloak_user_id)
+        saas_user_auth = await get_user_auth_from_keycloak_id(
+            jira_user.keycloak_user_id
+        )
 
         if not saas_user_auth:
             logger.warning(

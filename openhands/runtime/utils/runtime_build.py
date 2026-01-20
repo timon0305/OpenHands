@@ -62,8 +62,10 @@ def _generate_dockerfile(
 
     dockerfile_content = template.render(
         base_image=base_image,
-        build_from_scratch=build_from == BuildFromImageType.SCRATCH and not build_from_runtime_base,
-        build_from_versioned=build_from == BuildFromImageType.VERSIONED or build_from_runtime_base,
+        build_from_scratch=build_from == BuildFromImageType.SCRATCH
+        and not build_from_runtime_base,
+        build_from_versioned=build_from == BuildFromImageType.VERSIONED
+        or build_from_runtime_base,
         extra_deps=extra_deps if extra_deps is not None else '',
         enable_browser=enable_browser,
         channel_alias=channel_alias,

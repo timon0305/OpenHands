@@ -104,7 +104,7 @@ jobs:
           docker manifest create ghcr.io/${{ env.REPO_OWNER }}/runtime-base:latest \
             --amend ghcr.io/${{ env.REPO_OWNER }}/runtime-base:latest
           docker manifest push ghcr.io/${{ env.REPO_OWNER }}/runtime-base:latest
-          
+
           docker manifest create ghcr.io/${{ env.REPO_OWNER }}/runtime-base:${{ steps.date.outputs.date }} \
             --amend ghcr.io/${{ env.REPO_OWNER }}/runtime-base:${{ steps.date.outputs.date }}
           docker manifest push ghcr.io/${{ env.REPO_OWNER }}/runtime-base:${{ steps.date.outputs.date }}

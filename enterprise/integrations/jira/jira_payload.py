@@ -6,7 +6,6 @@ Jira webhook payloads, replacing scattered parsing logic throughout the codebase
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 from urllib.parse import urlparse
 
 from openhands.core.logger import openhands_logger as logger
@@ -56,7 +55,7 @@ class JiraWebhookPayload:
 class JiraPayloadParseError(Exception):
     """Raised when payload parsing fails."""
 
-    def __init__(self, reason: str, event_type: Optional[str] = None):
+    def __init__(self, reason: str, event_type: str | None = None):
         self.reason = reason
         self.event_type = event_type
         super().__init__(reason)
@@ -66,10 +65,10 @@ class JiraPayloadParseError(Exception):
 class JiraPayloadParseResult:
     """Result of parsing a webhook payload."""
 
-    payload: Optional[JiraWebhookPayload] = None
+    payload: JiraWebhookPayload | None = None
     skipped: bool = False
-    skip_reason: Optional[str] = None
-    error: Optional[str] = None
+    skip_reason: str | None = None
+    error: str | None = None
 
     @property
     def success(self) -> bool:

@@ -413,7 +413,7 @@ def infer_repo_from_message(user_msg: str) -> list[str]:
     # Pattern to match direct owner/repo mentions (e.g., "OpenHands/OpenHands")
     # Must be surrounded by word boundaries or specific characters to avoid false positives
     direct_pattern = (
-        r'(?:^|\s|[\[\(\'"])([a-zA-Z0-9_.-]+)/([a-zA-Z0-9_.-]+)(?=\s|$|[\]\)\'",.])'
+        r'(?:^|\s|[\[\(\'":`])([a-zA-Z0-9_.-]+)/([a-zA-Z0-9_.-]+)(?=\s|$|[\]\)\'",.:`])'
     )
 
     matches = []

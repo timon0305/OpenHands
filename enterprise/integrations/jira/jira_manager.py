@@ -400,12 +400,6 @@ class JiraManager(Manager):
                 extra={'issue_key': payload.issue_key, 'error': str(e)},
             )
 
-    # Required by Manager ABC but not used in new flow
-    async def is_job_requested(self, message: Message) -> bool:
-        """Deprecated: Job qualification is now handled by JiraPayloadParser."""
-        return True
-
-    # Keep for backward compatibility with routes that use it
     def get_workspace_name_from_payload(self, payload: dict) -> str | None:
         """Extract workspace name from Jira webhook payload.
 

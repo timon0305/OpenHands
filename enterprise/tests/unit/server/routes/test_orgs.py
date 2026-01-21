@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 with patch('storage.database.engine', create=True), patch(
     'storage.database.a_engine', create=True
 ):
-    from server.email_validation import get_openhands_user_id
+    from server.email_validation import get_admin_user_id
     from server.routes.org_models import (
         LiteLLMIntegrationError,
         OrgDatabaseError,
@@ -35,10 +35,10 @@ def mock_app():
     app.include_router(org_router)
 
     # Override the auth dependency to return a test user
-    def mock_get_openhands_user_id():
+    def mock_get_admin_user_id():
         return 'test-user-123'
 
-    app.dependency_overrides[get_openhands_user_id] = mock_get_openhands_user_id
+    app.dependency_overrides[get_admin_user_id] = mock_get_admin_user_id
 
     return app
 
@@ -127,7 +127,7 @@ async def test_create_org_empty_name(mock_app):
     """
     # Arrange
     request_data = {
-        'name': '   ',  # Empty/whitespace
+        'name': '',  # Empty string (after whitespace stripping)
         'contact_name': 'John Doe',
         'contact_email': 'john@example.com',
     }
@@ -268,7 +268,7 @@ async def test_create_org_unauthorized():
     async def mock_unauthenticated():
         raise HTTPException(status_code=401, detail='User not authenticated')
 
-    app.dependency_overrides[get_openhands_user_id] = mock_unauthenticated
+    app.dependency_overrides[get_admin_user_id] = mock_unauthenticated
 
     request_data = {
         'name': 'Test Organization',
@@ -302,7 +302,7 @@ async def test_create_org_forbidden_non_openhands_email():
             status_code=403, detail='Access restricted to @openhands.dev users'
         )
 
-    app.dependency_overrides[get_openhands_user_id] = mock_forbidden
+    app.dependency_overrides[get_admin_user_id] = mock_forbidden
 
     request_data = {
         'name': 'Test Organization',

@@ -62,10 +62,27 @@ class SandboxSpecServiceInjector(
 
 
 def get_agent_server_image() -> str:
+    """Get the agent server image to use for sandboxes.
+
+    This function checks environment variables in the following order:
+    1. AGENT_SERVER_IMAGE_REPOSITORY and AGENT_SERVER_IMAGE_TAG (V1 style)
+    2. SANDBOX_RUNTIME_CONTAINER_IMAGE (legacy V0 style, for backward compatibility)
+    3. Default AGENT_SERVER_IMAGE constant
+
+    Returns:
+        str: The full image name with tag (e.g., 'ghcr.io/openhands/agent-server:latest')
+    """
+    # Check V1 style environment variables first
     agent_server_image_repository = os.getenv('AGENT_SERVER_IMAGE_REPOSITORY')
     agent_server_image_tag = os.getenv('AGENT_SERVER_IMAGE_TAG')
     if agent_server_image_repository and agent_server_image_tag:
         return f'{agent_server_image_repository}:{agent_server_image_tag}'
+
+    # Check legacy V0 style environment variable for backward compatibility
+    sandbox_runtime_container_image = os.getenv('SANDBOX_RUNTIME_CONTAINER_IMAGE')
+    if sandbox_runtime_container_image:
+        return sandbox_runtime_container_image
+
     return AGENT_SERVER_IMAGE
 
 

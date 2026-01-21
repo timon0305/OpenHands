@@ -12,7 +12,13 @@ to JiraFactory, keeping the orchestration logic clean and traceable.
 """
 
 import httpx
-from integrations.jira.jira_payload import JiraPayloadParser, JiraWebhookPayload
+from integrations.jira.jira_payload import (
+    JiraPayloadError,
+    JiraPayloadParser,
+    JiraPayloadSkipped,
+    JiraPayloadSuccess,
+    JiraWebhookPayload,
+)
 from integrations.jira.jira_types import (
     JiraViewInterface,
     RepositoryNotFoundError,
@@ -91,13 +97,13 @@ class JiraManager(Manager):
 
         parse_result = self.payload_parser.parse(raw_payload)
 
-        if parse_result.skipped:
+        if isinstance(parse_result, JiraPayloadSkipped):
             logger.info(
                 '[Jira] Webhook skipped', extra={'reason': parse_result.skip_reason}
             )
             return
 
-        if parse_result.error:
+        if isinstance(parse_result, JiraPayloadError):
             logger.warning(
                 '[Jira] Webhook parse failed', extra={'error': parse_result.error}
             )
@@ -406,6 +412,6 @@ class JiraManager(Manager):
         This method is used by the route for signature verification.
         """
         parse_result = self.payload_parser.parse(payload)
-        if parse_result.success:
+        if isinstance(parse_result, JiraPayloadSuccess):
             return parse_result.payload.workspace_name
         return None

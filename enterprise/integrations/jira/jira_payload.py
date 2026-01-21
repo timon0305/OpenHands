@@ -61,30 +61,28 @@ class JiraPayloadParseError(Exception):
         super().__init__(reason)
 
 
-@dataclass
-class JiraPayloadParseResult:
-    """Result of parsing a webhook payload."""
+@dataclass(frozen=True)
+class JiraPayloadSuccess:
+    """Result when parsing succeeds."""
 
-    payload: JiraWebhookPayload | None = None
-    skipped: bool = False
-    skip_reason: str | None = None
-    error: str | None = None
+    payload: JiraWebhookPayload
 
-    @property
-    def success(self) -> bool:
-        return self.payload is not None
 
-    @classmethod
-    def ok(cls, payload: JiraWebhookPayload) -> 'JiraPayloadParseResult':
-        return cls(payload=payload)
+@dataclass(frozen=True)
+class JiraPayloadSkipped:
+    """Result when event is intentionally skipped."""
 
-    @classmethod
-    def skip(cls, reason: str) -> 'JiraPayloadParseResult':
-        return cls(skipped=True, skip_reason=reason)
+    skip_reason: str
 
-    @classmethod
-    def fail(cls, error: str) -> 'JiraPayloadParseResult':
-        return cls(error=error)
+
+@dataclass(frozen=True)
+class JiraPayloadError:
+    """Result when parsing fails due to invalid data."""
+
+    error: str
+
+
+JiraPayloadParseResult = JiraPayloadSuccess | JiraPayloadSkipped | JiraPayloadError
 
 
 class JiraPayloadParser:
@@ -112,10 +110,10 @@ class JiraPayloadParser:
             raw_payload: The raw webhook payload dict from Jira
 
         Returns:
-            JiraPayloadParseResult with either:
-            - success=True and payload populated for valid, actionable events
-            - skipped=True for events we intentionally don't process
-            - error populated for malformed payloads we expected to process
+            One of:
+            - JiraPayloadSuccess: Valid, actionable event with payload
+            - JiraPayloadSkipped: Event we intentionally don't process
+            - JiraPayloadError: Malformed payload we expected to process
         """
         webhook_event = raw_payload.get('webhookEvent', '')
 
@@ -128,9 +126,7 @@ class JiraPayloadParser:
         elif webhook_event == 'comment_created':
             return self._parse_comment_event(raw_payload, webhook_event)
         else:
-            return JiraPayloadParseResult.skip(
-                f'Unhandled webhook event type: {webhook_event}'
-            )
+            return JiraPayloadSkipped(f'Unhandled webhook event type: {webhook_event}')
 
     def _parse_label_event(
         self, payload: dict, webhook_event: str
@@ -147,7 +143,7 @@ class JiraPayloadParser:
         ]
 
         if self.oh_label not in labels:
-            return JiraPayloadParseResult.skip(
+            return JiraPayloadSkipped(
                 f"Label event does not contain '{self.oh_label}' label"
             )
 
@@ -169,7 +165,7 @@ class JiraPayloadParser:
         comment_body = comment_data.get('body', '')
 
         if not self._has_mention(comment_body):
-            return JiraPayloadParseResult.skip(
+            return JiraPayloadSkipped(
                 f"Comment does not mention '{self.inline_oh_label}'"
             )
 
@@ -231,7 +227,7 @@ class JiraPayloadParser:
             missing_fields.append('base_api_url (derived from issue.self)')
 
         if missing_fields:
-            return JiraPayloadParseResult.fail(
+            return JiraPayloadError(
                 f"Missing required fields: {', '.join(missing_fields)}"
             )
 
@@ -243,7 +239,7 @@ class JiraPayloadParser:
         assert display_name is not None
         assert account_id is not None
 
-        return JiraPayloadParseResult.ok(
+        return JiraPayloadSuccess(
             JiraWebhookPayload(
                 event_type=event_type,
                 raw_event=webhook_event,

@@ -7,7 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from integrations.jira.jira_payload import (
     JiraEventType,
+    JiraPayloadError,
     JiraPayloadParser,
+    JiraPayloadSkipped,
+    JiraPayloadSuccess,
 )
 from integrations.jira.jira_types import RepositoryNotFoundError, StartingConvoException
 from integrations.jira.jira_view import (
@@ -359,7 +362,7 @@ class TestJiraPayloadParser:
         """Test parsing label event."""
         result = parser.parse(sample_issue_update_webhook_payload)
 
-        assert result.success
+        assert isinstance(result, JiraPayloadSuccess)
         assert result.payload.event_type == JiraEventType.LABELED_TICKET
         assert result.payload.issue_key == 'PROJ-123'
 
@@ -367,7 +370,7 @@ class TestJiraPayloadParser:
         """Test parsing comment event."""
         result = parser.parse(sample_comment_webhook_payload)
 
-        assert result.success
+        assert isinstance(result, JiraPayloadSuccess)
         assert result.payload.event_type == JiraEventType.COMMENT_MENTION
         assert result.payload.issue_key == 'TEST-123'
         assert '@openhands' in result.payload.comment_body
@@ -377,8 +380,7 @@ class TestJiraPayloadParser:
         payload = {'webhookEvent': 'unknown_event'}
         result = parser.parse(payload)
 
-        assert not result.success
-        assert result.skipped
+        assert isinstance(result, JiraPayloadSkipped)
         assert 'Unhandled webhook event type' in result.skip_reason
 
     def test_parse_label_event_wrong_label_skipped(self, parser):
@@ -389,8 +391,7 @@ class TestJiraPayloadParser:
         }
         result = parser.parse(payload)
 
-        assert not result.success
-        assert result.skipped
+        assert isinstance(result, JiraPayloadSkipped)
         assert 'does not contain' in result.skip_reason
 
     def test_parse_comment_event_no_mention_skipped(self, parser):
@@ -404,8 +405,7 @@ class TestJiraPayloadParser:
         }
         result = parser.parse(payload)
 
-        assert not result.success
-        assert result.skipped
+        assert isinstance(result, JiraPayloadSkipped)
         assert 'does not mention' in result.skip_reason
 
     def test_parse_missing_fields_error(self, parser):
@@ -418,9 +418,7 @@ class TestJiraPayloadParser:
         }
         result = parser.parse(payload)
 
-        assert not result.success
-        assert not result.skipped
-        assert result.error is not None
+        assert isinstance(result, JiraPayloadError)
         assert 'Missing required fields' in result.error
 
 
@@ -453,7 +451,7 @@ class TestJiraPayloadParserStagingLabels:
         }
         result = staging_parser.parse(payload)
 
-        assert result.success
+        assert isinstance(result, JiraPayloadSuccess)
         assert result.payload.event_type == JiraEventType.LABELED_TICKET
 
     def test_parse_prod_label_in_staging_skipped(self, staging_parser):
@@ -464,5 +462,4 @@ class TestJiraPayloadParserStagingLabels:
         }
         result = staging_parser.parse(payload)
 
-        assert not result.success
-        assert result.skipped
+        assert isinstance(result, JiraPayloadSkipped)

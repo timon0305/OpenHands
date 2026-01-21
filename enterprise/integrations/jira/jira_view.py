@@ -247,42 +247,18 @@ class JiraFactory:
         )
 
     @staticmethod
-    async def _infer_repository(
-        payload: JiraWebhookPayload,
-        user_auth: UserAuth,
+    def _extract_potential_repos(
+        issue_key: str,
         issue_title: str,
         issue_description: str,
-    ) -> str:
-        """Attempt to infer and verify the repository from issue content.
-
-        Uses infer_repo_from_message to extract potential repo names from the
-        issue content, then verifies them using ProviderHandler.verify_repo_provider
-        to ensure the user has access.
-
-        Args:
-            payload: The webhook payload
-            user_auth: User authentication for verifying repos
-            issue_title: The issue title
-            issue_description: The issue description
-
-        Returns:
-            The verified repository full name
+        user_msg: str,
+    ) -> list[str]:
+        """Extract potential repository names from issue content.
 
         Raises:
-            RepositoryNotFoundError: If no valid repository can be determined,
-                or if multiple valid repositories are found (ambiguous)
+            RepositoryNotFoundError: If no potential repos found in text.
         """
-        provider_handler = await JiraFactory._create_provider_handler(user_auth)
-
-        if not provider_handler:
-            raise RepositoryNotFoundError(
-                'No Git provider connected. Please connect a Git provider in OpenHands settings.'
-            )
-
-        # Combine all text sources for repo inference
-        search_text = f'{issue_title}\n{issue_description}\n{payload.user_msg}'
-
-        # Extract potential repo names from the text
+        search_text = f'{issue_title}\n{issue_description}\n{user_msg}'
         potential_repos = infer_repo_from_message(search_text)
 
         if not potential_repos:
@@ -293,37 +269,50 @@ class JiraFactory:
 
         logger.info(
             '[Jira] Found potential repositories in issue content',
-            extra={
-                'issue_key': payload.issue_key,
-                'potential_repos': potential_repos,
-            },
+            extra={'issue_key': issue_key, 'potential_repos': potential_repos},
         )
+        return potential_repos
 
-        # Verify each potential repo and collect the ones the user has access to
+    @staticmethod
+    async def _verify_repos(
+        issue_key: str,
+        potential_repos: list[str],
+        provider_handler: ProviderHandler,
+    ) -> list[str]:
+        """Verify which repos the user has access to."""
         verified_repos: list[str] = []
+
         for repo_name in potential_repos:
             try:
                 repository = await provider_handler.verify_repo_provider(repo_name)
                 verified_repos.append(repository.full_name)
                 logger.debug(
                     '[Jira] Repository verification succeeded',
-                    extra={
-                        'issue_key': payload.issue_key,
-                        'repository': repository.full_name,
-                    },
+                    extra={'issue_key': issue_key, 'repository': repository.full_name},
                 )
             except Exception as e:
                 logger.debug(
                     '[Jira] Repository verification failed',
                     extra={
-                        'issue_key': payload.issue_key,
+                        'issue_key': issue_key,
                         'repo_name': repo_name,
                         'error': str(e),
                     },
                 )
-                continue
 
-        # Check results
+        return verified_repos
+
+    @staticmethod
+    def _select_single_repo(
+        issue_key: str,
+        potential_repos: list[str],
+        verified_repos: list[str],
+    ) -> str:
+        """Select exactly one repo from verified repos.
+
+        Raises:
+            RepositoryNotFoundError: If zero or multiple repos verified.
+        """
         if len(verified_repos) == 0:
             raise RepositoryNotFoundError(
                 f'Could not access any of the mentioned repositories: {", ".join(potential_repos)}. '
@@ -336,15 +325,41 @@ class JiraFactory:
                 'Please specify exactly one repository in the issue description or comment.'
             )
 
-        # Exactly one verified repo
         logger.info(
             '[Jira] Verified repository access',
-            extra={
-                'issue_key': payload.issue_key,
-                'repository': verified_repos[0],
-            },
+            extra={'issue_key': issue_key, 'repository': verified_repos[0]},
         )
         return verified_repos[0]
+
+    @staticmethod
+    async def _infer_repository(
+        payload: JiraWebhookPayload,
+        user_auth: UserAuth,
+        issue_title: str,
+        issue_description: str,
+    ) -> str:
+        """Infer and verify the repository from issue content.
+
+        Raises:
+            RepositoryNotFoundError: If no valid repository can be determined.
+        """
+        provider_handler = await JiraFactory._create_provider_handler(user_auth)
+        if not provider_handler:
+            raise RepositoryNotFoundError(
+                'No Git provider connected. Please connect a Git provider in OpenHands settings.'
+            )
+
+        potential_repos = JiraFactory._extract_potential_repos(
+            payload.issue_key, issue_title, issue_description, payload.user_msg
+        )
+
+        verified_repos = await JiraFactory._verify_repos(
+            payload.issue_key, potential_repos, provider_handler
+        )
+
+        return JiraFactory._select_single_repo(
+            payload.issue_key, potential_repos, verified_repos
+        )
 
     @staticmethod
     async def create_view(

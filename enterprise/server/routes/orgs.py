@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from server.email_validation import get_openhands_user_id
+from server.email_validation import get_admin_user_id
 from server.routes.org_models import (
     LiteLLMIntegrationError,
     OrgAuthorizationError,
@@ -22,7 +22,7 @@ org_router = APIRouter(prefix='/api/organizations')
 @org_router.post('', response_model=OrgResponse, status_code=status.HTTP_201_CREATED)
 async def create_org(
     org_data: OrgCreate,
-    user_id: str = Depends(get_openhands_user_id),
+    user_id: str = Depends(get_admin_user_id),
 ) -> OrgResponse:
     """Create a new organization.
 
@@ -124,7 +124,7 @@ async def create_org(
 @org_router.delete('/{org_id}', status_code=status.HTTP_200_OK)
 async def delete_org(
     org_id: UUID,
-    user_id: str = Depends(get_openhands_user_id),
+    user_id: str = Depends(get_admin_user_id),
 ) -> dict:
     """Delete an organization.
 

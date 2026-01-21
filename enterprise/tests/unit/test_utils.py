@@ -154,6 +154,10 @@ def test_infer_repo_from_message():
             '@openhands-exp just echo hello world in `OpenHands/OpenHands-CLI` repository',
             ['OpenHands/OpenHands-CLI'],
         ),
+        (
+            '@openhands-exp echo hello world with {{OpenHands/OpenHands-CLI}}',
+            ['OpenHands/OpenHands-CLI'],
+        ),
         ('Deploy the `test/project` repo', ['test/project']),
         # Colon-wrapped repo mentions
         ('Check the :owner/repo: here', ['owner/repo']),

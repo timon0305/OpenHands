@@ -196,48 +196,35 @@ class JiraPayloadParser:
         """Extract common fields and validate required data is present."""
         issue_data = payload.get('issue', {})
 
-        # Extract issue fields
-        issue_id = issue_data.get('id')
-        issue_key = issue_data.get('key')
-        issue_self_url = issue_data.get('self', '')
-
-        # Extract user fields
-        user_email = user_data.get('emailAddress')
-        display_name = user_data.get('displayName')
-        account_id = user_data.get('accountId')
-
-        # Derive workspace info from self URL
-        base_api_url, workspace_name = self._extract_workspace_from_url(issue_self_url)
+        # Extract all fields with empty string defaults (makes them str type)
+        issue_id = issue_data.get('id', '')
+        issue_key = issue_data.get('key', '')
+        user_email = user_data.get('emailAddress', '')
+        display_name = user_data.get('displayName', '')
+        account_id = user_data.get('accountId', '')
+        base_api_url, workspace_name = self._extract_workspace_from_url(
+            issue_data.get('self', '')
+        )
 
         # Validate required fields
-        missing_fields = []
+        missing: list[str] = []
         if not issue_id:
-            missing_fields.append('issue.id')
+            missing.append('issue.id')
         if not issue_key:
-            missing_fields.append('issue.key')
+            missing.append('issue.key')
         if not user_email:
-            missing_fields.append('user.emailAddress')
+            missing.append('user.emailAddress')
         if not display_name:
-            missing_fields.append('user.displayName')
+            missing.append('user.displayName')
         if not account_id:
-            missing_fields.append('user.accountId')
+            missing.append('user.accountId')
         if not workspace_name:
-            missing_fields.append('workspace_name (derived from issue.self)')
+            missing.append('workspace_name (derived from issue.self)')
         if not base_api_url:
-            missing_fields.append('base_api_url (derived from issue.self)')
+            missing.append('base_api_url (derived from issue.self)')
 
-        if missing_fields:
-            return JiraPayloadError(
-                f"Missing required fields: {', '.join(missing_fields)}"
-            )
-
-        # At this point, all required fields are validated as non-None
-        # Use assertions to help mypy understand the types
-        assert issue_id is not None
-        assert issue_key is not None
-        assert user_email is not None
-        assert display_name is not None
-        assert account_id is not None
+        if missing:
+            return JiraPayloadError(f"Missing required fields: {', '.join(missing)}")
 
         return JiraPayloadSuccess(
             JiraWebhookPayload(

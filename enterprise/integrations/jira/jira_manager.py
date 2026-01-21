@@ -92,7 +92,7 @@ class JiraManager(Manager):
         # Step 1: Parse webhook payload
         logger.info(
             '[Jira] Received webhook',
-            extra={'webhook_event': raw_payload.get('webhookEvent')},
+            extra={'raw_payload': raw_payload},
         )
 
         parse_result = self.payload_parser.parse(raw_payload)

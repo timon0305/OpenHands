@@ -112,10 +112,12 @@ pybase62 = "^1.0.0"
 # V1 dependencies
 # Using PR #1676 branch from software-agent-sdk which includes:
 # - PR #1651: Plugin loading support
-# - PR #1674: Commands loaded as keyword-triggered skills
-openhands-agent-server = { git = "https://github.com/OpenHands/software-agent-sdk.git", subdirectory = "openhands-agent-server", rev = "32a27fc76c3cfb34a1420f9e44a984414960e8c2" }
-openhands-sdk = { git = "https://github.com/OpenHands/software-agent-sdk.git", subdirectory = "openhands-sdk", rev = "32a27fc76c3cfb34a1420f9e44a984414960e8c2" }
-openhands-tools = { git = "https://github.com/OpenHands/software-agent-sdk.git", subdirectory = "openhands-tools", rev = "32a27fc76c3cfb34a1420f9e44a984414960e8c2" }
+# Pinned to SDK PR #1651 (feat/agent-server-plugin-loading branch):
+# - Multi-plugin support via `plugins: list[PluginSource]` in StartConversationRequest
+# - Plugin loading with skills, MCP config, and hooks merging
+openhands-agent-server = { git = "https://github.com/OpenHands/software-agent-sdk.git", subdirectory = "openhands-agent-server", rev = "e2a81a19857cbe5c693ba35b5526dc03cf8cfe24" }
+openhands-sdk = { git = "https://github.com/OpenHands/software-agent-sdk.git", subdirectory = "openhands-sdk", rev = "e2a81a19857cbe5c693ba35b5526dc03cf8cfe24" }
+openhands-tools = { git = "https://github.com/OpenHands/software-agent-sdk.git", subdirectory = "openhands-tools", rev = "e2a81a19857cbe5c693ba35b5526dc03cf8cfe24" }
 # Production versions (commented for testing against PR):
 #openhands-sdk = "1.8.1"
 #openhands-agent-server = "1.8.1"

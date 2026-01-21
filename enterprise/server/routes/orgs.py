@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from server.email_validation import get_openhands_user_id
+from server.email_validation import get_admin_user_id
 from server.routes.org_models import (
     LiteLLMIntegrationError,
     OrgCreate,
@@ -123,7 +123,7 @@ async def list_user_orgs(
 @org_router.post('', response_model=OrgResponse, status_code=status.HTTP_201_CREATED)
 async def create_org(
     org_data: OrgCreate,
-    user_id: str = Depends(get_openhands_user_id),
+    user_id: str = Depends(get_admin_user_id),
 ) -> OrgResponse:
     """Create a new organization.
 

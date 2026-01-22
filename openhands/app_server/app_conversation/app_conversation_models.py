@@ -177,6 +177,6 @@ class SkillResponse(BaseModel):
     """Response model for skills endpoint."""
 
     name: str
-    type: Literal['repo', 'knowledge']
+    type: Literal['repo', 'knowledge', 'agentskills']
     content: str
     triggers: list[str] = []

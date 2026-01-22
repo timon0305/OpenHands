@@ -1008,7 +1008,9 @@ async def _update_v1_conversation(
     # Try to update the agent-server as well (only for title changes)
     if new_title is not None:
         try:
-            if hasattr(app_conversation_service, 'update_agent_server_conversation_title'):
+            if hasattr(
+                app_conversation_service, 'update_agent_server_conversation_title'
+            ):
                 await app_conversation_service.update_agent_server_conversation_title(
                     conversation_id=conversation_id,
                     new_title=new_title,

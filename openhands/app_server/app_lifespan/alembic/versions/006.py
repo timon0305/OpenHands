@@ -24,9 +24,7 @@ def upgrade() -> None:
         batch_op.add_column(
             sa.Column('archived', sa.Boolean(), nullable=True, default=False)
         )
-        batch_op.create_index(
-            'ix_conversation_metadata_archived', ['archived']
-        )
+        batch_op.create_index('ix_conversation_metadata_archived', ['archived'])
 
 
 def downgrade() -> None:

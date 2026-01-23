@@ -260,4 +260,6 @@ class ClearHistoryAction(Action):
 
     @property
     def message(self) -> str:
-        return 'Conversation history cleared. Runtime state preserved. How can I help you?'
+        return (
+            'Conversation history cleared. Runtime state preserved. How can I help you?'
+        )

@@ -22,7 +22,6 @@ from storage.org_member import OrgMember
 from storage.retention_audit_log import RetentionAuditLog
 from storage.stored_conversation_metadata import StoredConversationMetadata
 from storage.stored_conversation_metadata_saas import StoredConversationMetadataSaas
-from storage.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -91,34 +90,34 @@ class InactiveUserDataRetentionProcessor(MaintenanceTaskProcessor):
 
                         if marked > 0 or deleted > 0 or recovered > 0:
                             logger.info(
-                                "Org %s retention: marked=%d, deleted=%d, recovered=%d",
+                                'Org %s retention: marked=%d, deleted=%d, recovered=%d',
                                 org.id,
                                 marked,
                                 deleted,
                                 recovered,
                             )
                     except Exception as e:
-                        error_msg = f"Error processing org {org.id}: {str(e)}"
+                        error_msg = f'Error processing org {org.id}: {str(e)}'
                         errors.append(error_msg)
                         logger.exception(error_msg)
 
             return {
-                "status": "completed" if not errors else "completed_with_errors",
-                "orgs_processed": orgs_processed,
-                "users_marked_for_retention": total_marked,
-                "users_data_deleted": total_deleted,
-                "users_recovered": total_recovered,
-                "errors": errors if errors else None,
+                'status': 'completed' if not errors else 'completed_with_errors',
+                'orgs_processed': orgs_processed,
+                'users_marked_for_retention': total_marked,
+                'users_data_deleted': total_deleted,
+                'users_recovered': total_recovered,
+                'errors': errors if errors else None,
             }
 
         except Exception as e:
-            logger.exception("Failed to process inactive user data retention")
+            logger.exception('Failed to process inactive user data retention')
             return {
-                "status": "error",
-                "error": str(e),
-                "orgs_processed": orgs_processed,
-                "users_marked_for_retention": total_marked,
-                "users_data_deleted": total_deleted,
+                'status': 'error',
+                'error': str(e),
+                'orgs_processed': orgs_processed,
+                'users_marked_for_retention': total_marked,
+                'users_data_deleted': total_deleted,
             }
 
     def _process_org_retention(self, session, org: Org) -> tuple[int, int, int]:
@@ -190,7 +189,7 @@ class InactiveUserDataRetentionProcessor(MaintenanceTaskProcessor):
                     OrgMember.org_id == org_id,
                     or_(
                         OrgMember.retention_status.is_(None),
-                        OrgMember.retention_status == "active",
+                        OrgMember.retention_status == 'active',
                     ),
                 )
             )
@@ -208,7 +207,7 @@ class InactiveUserDataRetentionProcessor(MaintenanceTaskProcessor):
                 last_activity = datetime.min.replace(tzinfo=UTC)
 
             if last_activity < threshold:
-                member.retention_status = "retention_pending"
+                member.retention_status = 'retention_pending'
                 member.retention_pending_since = datetime.now(UTC)
                 marked_count += 1
 
@@ -217,13 +216,13 @@ class InactiveUserDataRetentionProcessor(MaintenanceTaskProcessor):
                     session,
                     user_id=member.user_id,
                     org_id=org_id,
-                    action="marked",
-                    triggered_by="policy",
-                    details=f"Last activity: {last_activity.isoformat() if last_activity != datetime.min.replace(tzinfo=UTC) else 'never'}",
+                    action='marked',
+                    triggered_by='policy',
+                    details=f'Last activity: {last_activity.isoformat() if last_activity != datetime.min.replace(tzinfo=UTC) else "never"}',
                 )
 
                 logger.debug(
-                    "Marked user %s for retention (last activity: %s)",
+                    'Marked user %s for retention (last activity: %s)',
                     member.user_id,
                     last_activity,
                 )
@@ -250,7 +249,7 @@ class InactiveUserDataRetentionProcessor(MaintenanceTaskProcessor):
             .filter(
                 and_(
                     OrgMember.org_id == org_id,
-                    OrgMember.retention_status == "retention_pending",
+                    OrgMember.retention_status == 'retention_pending',
                     OrgMember.retention_pending_since < grace_threshold,
                 )
             )
@@ -266,7 +265,7 @@ class InactiveUserDataRetentionProcessor(MaintenanceTaskProcessor):
                 )
 
                 # Update member status
-                member.retention_status = "retention_deleted"
+                member.retention_status = 'retention_deleted'
                 deleted_count += 1
 
                 # Create audit log entry
@@ -274,14 +273,14 @@ class InactiveUserDataRetentionProcessor(MaintenanceTaskProcessor):
                     session,
                     user_id=member.user_id,
                     org_id=org_id,
-                    action="deleted",
-                    triggered_by="policy",
-                    data_scope={"conversations_deleted": conversations_deleted},
-                    details=f"Deleted {conversations_deleted} conversations after grace period",
+                    action='deleted',
+                    triggered_by='policy',
+                    data_scope={'conversations_deleted': conversations_deleted},
+                    details=f'Deleted {conversations_deleted} conversations after grace period',
                 )
 
                 logger.info(
-                    "Deleted %d conversations for user %s in org %s",
+                    'Deleted %d conversations for user %s in org %s',
                     conversations_deleted,
                     member.user_id,
                     org_id,
@@ -289,7 +288,7 @@ class InactiveUserDataRetentionProcessor(MaintenanceTaskProcessor):
 
             except Exception as e:
                 logger.warning(
-                    "Failed to delete data for user %s: %s",
+                    'Failed to delete data for user %s: %s',
                     member.user_id,
                     str(e),
                 )
@@ -347,7 +346,7 @@ class InactiveUserDataRetentionProcessor(MaintenanceTaskProcessor):
             .filter(
                 and_(
                     OrgMember.org_id == org_id,
-                    OrgMember.retention_status == "retention_pending",
+                    OrgMember.retention_status == 'retention_pending',
                 )
             )
             .limit(self.batch_size)
@@ -361,7 +360,7 @@ class InactiveUserDataRetentionProcessor(MaintenanceTaskProcessor):
 
             # If they have recent activity, recover them
             if last_activity and last_activity >= threshold:
-                member.retention_status = "active"
+                member.retention_status = 'active'
                 member.retention_pending_since = None
                 recovered_count += 1
 
@@ -370,13 +369,13 @@ class InactiveUserDataRetentionProcessor(MaintenanceTaskProcessor):
                     session,
                     user_id=member.user_id,
                     org_id=org_id,
-                    action="recovered",
-                    triggered_by="policy",
-                    details=f"User became active again: {last_activity.isoformat()}",
+                    action='recovered',
+                    triggered_by='policy',
+                    details=f'User became active again: {last_activity.isoformat()}',
                 )
 
                 logger.info(
-                    "Recovered user %s from retention (recent activity: %s)",
+                    'Recovered user %s from retention (recent activity: %s)',
                     member.user_id,
                     last_activity,
                 )

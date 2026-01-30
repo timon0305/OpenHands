@@ -30,7 +30,7 @@ class RetentionAuditLog(Base):  # type: ignore
         created_at: When the action occurred
     """
 
-    __tablename__ = "retention_audit_log"
+    __tablename__ = 'retention_audit_log'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id = Column(UUID(as_uuid=True), nullable=False, index=True)

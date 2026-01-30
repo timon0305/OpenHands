@@ -7,7 +7,7 @@ This table tracks all retention-related actions for compliance and auditing.
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import JSON, UUID, Column, DateTime, Integer, String
+from sqlalchemy import JSON, UUID, Column, DateTime, String
 from storage.base import Base
 
 
@@ -30,7 +30,7 @@ class RetentionAuditLog(Base):  # type: ignore
         created_at: When the action occurred
     """
 
-    __tablename__ = 'retention_audit_log'
+    __tablename__ = "retention_audit_log"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id = Column(UUID(as_uuid=True), nullable=False, index=True)

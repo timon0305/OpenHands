@@ -18,6 +18,13 @@ import { ScrollProvider } from "#/context/scroll-context";
 import { useInitialQueryStore } from "#/stores/initial-query-store";
 import { useSendMessage } from "#/hooks/use-send-message";
 import { useAgentState } from "#/hooks/use-agent-state";
+import { ChatSearchInput } from "./chat-search-input";
+import {
+  useChatSearch,
+  getV0EventContent,
+  getV1EventContent,
+} from "#/hooks/use-chat-search";
+import { ChatSearchProvider } from "#/context/chat-search-context";
 
 import { ScrollToBottomButton } from "#/components/shared/buttons/scroll-to-bottom-button";
 import { LoadingSpinner } from "#/components/shared/loading-spinner";
@@ -169,6 +176,61 @@ export function ChatInterface() {
     [storeEvents],
   );
 
+  // Determine messages for search based on conversation version
+  const messagesForSearch = isV1Conversation ? v1UiEvents : v0Events;
+  const getContentForSearch = isV1Conversation
+    ? getV1EventContent
+    : getV0EventContent;
+
+  // Search functionality
+  const {
+    searchQuery,
+    setSearchQuery,
+    isSearchOpen,
+    setIsSearchOpen,
+    searchResults,
+    currentResultIndex,
+    totalResults,
+    goToNextResult,
+    goToPreviousResult,
+    clearSearch,
+  } = useChatSearch({
+    messages: messagesForSearch,
+    getMessageContent: getContentForSearch,
+  });
+
+  // Keyboard shortcut for search (Ctrl+F)
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [setIsSearchOpen]);
+
+  // Scroll to current search result
+  React.useEffect(() => {
+    if (searchResults.length > 0 && scrollRef.current) {
+      const currentResult = searchResults[currentResultIndex];
+      if (currentResult !== undefined) {
+        // Find the message element by data-event-index attribute
+        const messageElement = scrollRef.current.querySelector(
+          `[data-event-index="${currentResult.index}"]`,
+        );
+        if (messageElement) {
+          messageElement.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+      }
+    }
+  }, [currentResultIndex, searchResults]);
+
   const handleSendMessage = async (
     content: string,
     originalImages: File[],
@@ -283,6 +345,17 @@ export function ChatInterface() {
           )}
         {/* Note: We only hide chat suggestions when there's a user message */}
 
+        <ChatSearchInput
+          isOpen={isSearchOpen}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onClose={clearSearch}
+          totalResults={totalResults}
+          currentResultIndex={currentResultIndex}
+          onNextResult={goToNextResult}
+          onPreviousResult={goToPreviousResult}
+        />
+
         <div
           ref={scrollRef}
           onScroll={(e) => onChatBodyScroll(e.currentTarget)}
@@ -298,18 +371,24 @@ export function ChatInterface() {
             </div>
           )}
 
-          {!isLoadingMessages && v0UserEventsExist && (
-            <V0Messages
-              messages={v0Events}
-              isAwaitingUserConfirmation={
-                curAgentState === AgentState.AWAITING_USER_CONFIRMATION
-              }
-            />
-          )}
+          <ChatSearchProvider
+            searchQuery={searchQuery}
+            currentResultIndex={currentResultIndex}
+            searchResultIndices={searchResults.map((r) => r.index)}
+          >
+            {!isLoadingMessages && v0UserEventsExist && (
+              <V0Messages
+                messages={v0Events}
+                isAwaitingUserConfirmation={
+                  curAgentState === AgentState.AWAITING_USER_CONFIRMATION
+                }
+              />
+            )}
 
-          {showV1Messages && v1UserEventsExist && (
-            <V1Messages messages={v1UiEvents} allEvents={v1FullEvents} />
-          )}
+            {showV1Messages && v1UserEventsExist && (
+              <V1Messages messages={v1UiEvents} allEvents={v1FullEvents} />
+            )}
+          </ChatSearchProvider>
         </div>
 
         <div className="flex flex-col gap-[6px]">

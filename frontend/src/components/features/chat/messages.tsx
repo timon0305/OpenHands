@@ -25,6 +25,8 @@ import { AgentState } from "#/types/agent-state";
 import { getFirstPRUrl } from "#/utils/parse-pr-url";
 import MemoryIcon from "#/icons/memory_icon.svg?react";
 import { useActiveConversation } from "#/hooks/query/use-active-conversation";
+import { useChatSearchContext } from "#/context/chat-search-context";
+import { cn } from "#/utils/utils";
 
 const isErrorEvent = (evt: unknown): evt is { error: true; message: string } =>
   typeof evt === "object" &&
@@ -53,6 +55,7 @@ export const Messages: React.FC<MessagesProps> = React.memo(
     const { conversationId } = useConversationId();
     const { data: conversation } = useUserConversation(conversationId);
     const { data: activeConversation } = useActiveConversation();
+    const searchContext = useChatSearchContext();
 
     // TODO: Hide microagent actions for V1 conversations
     // This is a temporary measure and may be re-enabled in the future
@@ -228,37 +231,53 @@ export const Messages: React.FC<MessagesProps> = React.memo(
 
     return (
       <>
-        {messages.map((message, index) => (
-          <EventMessage
-            key={index}
-            event={message}
-            hasObservationPair={actionHasObservationPair(message)}
-            isAwaitingUserConfirmation={isAwaitingUserConfirmation}
-            isLastMessage={messages.length - 1 === index}
-            microagentStatus={getMicroagentStatusForEvent(message.id)}
-            microagentConversationId={getMicroagentConversationIdForEvent(
-              message.id,
-            )}
-            microagentPRUrl={getMicroagentPRUrlForEvent(message.id)}
-            actions={
-              conversation?.selected_repository && !isV1Conversation
-                ? [
-                    {
-                      icon: (
-                        <MemoryIcon className="w-[14px] h-[14px] text-white" />
-                      ),
-                      onClick: () => {
-                        setSelectedEventId(message.id);
-                        setShowLaunchMicroagentModal(true);
-                      },
-                      tooltip: t("MICROAGENT$ADD_TO_MEMORY"),
-                    },
-                  ]
-                : undefined
-            }
-            isInLast10Actions={messages.length - 1 - index < 10}
-          />
-        ))}
+        {messages.map((message, index) => {
+          const isSearchMatch = searchContext?.searchResultIndices.has(index);
+          const isCurrentSearchResult =
+            isSearchMatch && searchContext?.currentMessageIndex === index;
+
+          return (
+            <div
+              key={index}
+              data-event-index={index}
+              className={cn(
+                "transition-all duration-200 relative",
+                isSearchMatch && "border-l-2 border-yellow-500/50 pl-2",
+                isCurrentSearchResult &&
+                  "border-l-4 border-yellow-500 bg-yellow-500/10 pl-2 rounded-r-lg",
+              )}
+            >
+              <EventMessage
+                event={message}
+                hasObservationPair={actionHasObservationPair(message)}
+                isAwaitingUserConfirmation={isAwaitingUserConfirmation}
+                isLastMessage={messages.length - 1 === index}
+                microagentStatus={getMicroagentStatusForEvent(message.id)}
+                microagentConversationId={getMicroagentConversationIdForEvent(
+                  message.id,
+                )}
+                microagentPRUrl={getMicroagentPRUrlForEvent(message.id)}
+                actions={
+                  conversation?.selected_repository && !isV1Conversation
+                    ? [
+                        {
+                          icon: (
+                            <MemoryIcon className="w-[14px] h-[14px] text-white" />
+                          ),
+                          onClick: () => {
+                            setSelectedEventId(message.id);
+                            setShowLaunchMicroagentModal(true);
+                          },
+                          tooltip: t("MICROAGENT$ADD_TO_MEMORY"),
+                        },
+                      ]
+                    : undefined
+                }
+                isInLast10Actions={messages.length - 1 - index < 10}
+              />
+            </div>
+          );
+        })}
 
         {optimisticUserMessage && (
           <ChatMessage type="user" message={optimisticUserMessage} />

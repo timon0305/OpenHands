@@ -1,10 +1,12 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import { ConversationStatus } from "#/types/conversation-status";
 import { useChatInputLogic } from "#/hooks/chat/use-chat-input-logic";
 import { useFileHandling } from "#/hooks/chat/use-file-handling";
 import { useGripResize } from "#/hooks/chat/use-grip-resize";
 import { useChatInputEvents } from "#/hooks/chat/use-chat-input-events";
 import { useChatSubmission } from "#/hooks/chat/use-chat-submission";
+import { useSlashMenu } from "#/hooks/chat/use-slash-menu";
+import { useConversationSkills } from "#/hooks/query/use-conversation-skills";
 import { ChatInputGrip } from "./components/chat-input-grip";
 import { ChatInputContainer } from "./components/chat-input-container";
 import { HiddenFileInput } from "./components/hidden-file-input";
@@ -94,16 +96,62 @@ export function CustomChatInput({
     resetManualResize,
   );
 
-  const { handleInput, handlePaste, handleKeyDown, handleBlur, handleFocus } =
-    useChatInputEvents(
-      chatInputRef as React.RefObject<HTMLDivElement | null>,
-      smartResize,
-      increaseHeightForEmptyContent,
-      checkIsContentEmpty,
-      clearEmptyContentHandler,
-      onFocus,
-      onBlur,
-    );
+  const {
+    handleInput: baseHandleInput,
+    handlePaste,
+    handleKeyDown: baseHandleKeyDown,
+    handleBlur,
+    handleFocus,
+  } = useChatInputEvents(
+    chatInputRef as React.RefObject<HTMLDivElement | null>,
+    smartResize,
+    increaseHeightForEmptyContent,
+    checkIsContentEmpty,
+    clearEmptyContentHandler,
+    onFocus,
+    onBlur,
+  );
+
+  // Fetch conversation skills for slash menu
+  const { data: skills } = useConversationSkills();
+
+  // Slash menu hook
+  const {
+    isOpen: isSlashMenuOpen,
+    filteredSkills,
+    selectedIndex: slashMenuSelectedIndex,
+    handleSlashDetection,
+    handleKeyDown: handleSlashKeyDown,
+    selectSkill,
+    closeMenu: closeSlashMenu,
+  } = useSlashMenu({
+    chatInputRef: chatInputRef as React.RefObject<HTMLDivElement | null>,
+    skills,
+    onSelectSkill: () => setTimeout(smartResize, 0),
+  });
+
+  // Wrap handleInput to detect slash
+  const handleInput = useCallback(() => {
+    baseHandleInput();
+    handleSlashDetection();
+  }, [baseHandleInput, handleSlashDetection]);
+
+  // Wrap handleKeyDown to check slash menu first
+  const handleKeyDown = useCallback(
+    (
+      e: React.KeyboardEvent,
+      isInputDisabled: boolean,
+      handleSubmitFn: () => void,
+    ) => {
+      // Let slash menu handle the key first
+      if (handleSlashKeyDown(e)) {
+        return;
+      }
+      // Otherwise, use the base handler
+      baseHandleKeyDown(e, isInputDisabled, handleSubmitFn);
+    },
+    [handleSlashKeyDown, baseHandleKeyDown],
+  );
 
   // Cleanup: reset suggestions visibility when component unmounts
   useEffect(
@@ -149,6 +197,12 @@ export function CustomChatInput({
           onKeyDown={(e) => handleKeyDown(e, isDisabled, handleSubmit)}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          // Slash menu props
+          isSlashMenuOpen={isSlashMenuOpen}
+          slashMenuSkills={filteredSkills}
+          slashMenuSelectedIndex={slashMenuSelectedIndex}
+          onSlashMenuSelect={selectSkill}
+          onSlashMenuClose={closeSlashMenu}
         />
       </div>
     </div>

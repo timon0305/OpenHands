@@ -15950,5 +15950,21 @@
     "tr": "Bağlantı panoya kopyalandı",
     "de": "Link in die Zwischenablage kopiert",
     "uk": "Посилання скопійовано в буфер обміну"
+  },
+  "SLASH_MENU$NO_SKILLS_FOUND": {
+    "en": "No skills found",
+    "ja": "スキルが見つかりません",
+    "zh-CN": "未找到技能",
+    "zh-TW": "未找到技能",
+    "ko-KR": "스킬을 찾을 수 없습니다",
+    "no": "Ingen ferdigheter funnet",
+    "it": "Nessuna abilità trovata",
+    "pt": "Nenhuma habilidade encontrada",
+    "es": "No se encontraron habilidades",
+    "ar": "لم يتم العثور على مهارات",
+    "fr": "Aucune compétence trouvée",
+    "tr": "Beceri bulunamadı",
+    "de": "Keine Fähigkeiten gefunden",
+    "uk": "Навичок не знайдено"
   }
 }

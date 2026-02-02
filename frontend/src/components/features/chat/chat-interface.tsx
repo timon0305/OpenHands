@@ -34,7 +34,7 @@ import {
   shouldRenderEvent,
 } from "./event-content-helpers/should-render-event";
 import {
-  Messages as V1Messages,
+  VirtualizedMessages as V1VirtualizedMessages,
   hasUserEvent as hasV1UserEvent,
   shouldRenderEvent as shouldRenderV1Event,
 } from "#/components/v1/chat";
@@ -347,7 +347,14 @@ export function ChatInterface() {
           )}
 
           {showV1Messages && v1UserEventsExist && (
-            <V1Messages messages={v1UiEvents} allEvents={v1FullEvents} />
+            <V1VirtualizedMessages
+              messages={v1UiEvents}
+              allEvents={v1FullEvents}
+              scrollParent={scrollRef.current}
+              autoScroll={autoScroll}
+              setAutoScroll={setAutoScroll}
+              setHitBottom={setHitBottom}
+            />
           )}
         </div>
 

@@ -3,8 +3,10 @@ import { DragOver } from "../drag-over";
 import { UploadedFiles } from "../uploaded-files";
 import { ChatInputRow } from "./chat-input-row";
 import { ChatInputActions } from "./chat-input-actions";
+import { SlashMenu } from "./slash-menu";
 import { useConversationStore } from "#/stores/conversation-store";
 import { cn } from "#/utils/utils";
+import { Skill } from "#/api/conversation-service/v1-conversation-service.types";
 
 interface ChatInputContainerProps {
   chatContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -24,6 +26,12 @@ interface ChatInputContainerProps {
   onKeyDown: (e: React.KeyboardEvent) => void;
   onFocus?: () => void;
   onBlur?: () => void;
+  // Slash menu props
+  isSlashMenuOpen?: boolean;
+  slashMenuSkills?: Skill[];
+  slashMenuSelectedIndex?: number;
+  onSlashMenuSelect?: (skill: Skill) => void;
+  onSlashMenuClose?: () => void;
 }
 
 export function ChatInputContainer({
@@ -44,6 +52,11 @@ export function ChatInputContainer({
   onKeyDown,
   onFocus,
   onBlur,
+  isSlashMenuOpen = false,
+  slashMenuSkills = [],
+  slashMenuSelectedIndex = 0,
+  onSlashMenuSelect,
+  onSlashMenuClose,
 }: ChatInputContainerProps) {
   const conversationMode = useConversationStore(
     (state) => state.conversationMode,
@@ -60,6 +73,17 @@ export function ChatInputContainer({
       onDragLeave={(e) => onDragLeave(e, disabled)}
       onDrop={(e) => onDrop(e, disabled)}
     >
+      {/* Slash Menu */}
+      {onSlashMenuSelect && onSlashMenuClose && (
+        <SlashMenu
+          isOpen={isSlashMenuOpen}
+          skills={slashMenuSkills}
+          selectedIndex={slashMenuSelectedIndex}
+          onSelect={onSlashMenuSelect}
+          onClose={onSlashMenuClose}
+        />
+      )}
+
       {/* Drag Over UI */}
       {isDragOver && <DragOver />}
 
